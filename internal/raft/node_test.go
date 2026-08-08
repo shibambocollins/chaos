@@ -25,6 +25,21 @@ func TestStep_StaleTimerGenerationIsIgnored(t *testing.T) {
 	}
 }
 
+func TestTimerGeneration_ReflectsBumpsFromHandlers(t *testing.T) {
+	n := NewNodeState(1, []int{2, 3})
+	rng := rand.New(rand.NewSource(1))
+
+	if n.TimerGeneration(TimerElection) != 0 {
+		t.Fatalf("expected initial generation 0, got %d", n.TimerGeneration(TimerElection))
+	}
+
+	n.Step(Event{Kind: EventTimerFire, TimerKindField: TimerElection, TimerGen: 0}, rng)
+
+	if n.TimerGeneration(TimerElection) != 1 {
+		t.Fatalf("expected generation 1 after an election timeout bumped it, got %d", n.TimerGeneration(TimerElection))
+	}
+}
+
 func TestNewNodeState_PeersAreSortedAndExcludeSelf(t *testing.T) {
 	n := NewNodeState(2, []int{5, 1, 3})
 

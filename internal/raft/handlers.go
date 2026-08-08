@@ -8,9 +8,3 @@ import "math/rand"
 func (n *NodeState) handleMessage(from int, msg *RaftMessage, rng *rand.Rand) []Outbound {
 	return nil
 }
-
-// handleTimeout is deliberately unimplemented here — see Module 3
-// (phase2/03-handle-timeout).
-func (n *NodeState) handleTimeout(kind TimerKind, rng *rand.Rand) []Outbound {
-	return nil
-}

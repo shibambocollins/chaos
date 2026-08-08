@@ -21,11 +21,24 @@ func (n *NodeState) handleMessage(from int, msg *RaftMessage, rng *rand.Rand) []
 		return n.handleRequestVote(from, msg, rng, steppedDown)
 	case MsgRequestVoteReply:
 		return n.handleRequestVoteReply(from, msg, steppedDown)
+	case MsgAppendEntries:
+		return n.handleAppendEntries(from, msg, rng, steppedDown)
 	}
 
-	// Remaining message kinds (AppendEntries, AppendEntriesReply) are
-	// later sub-modules of Module 4.
+	// MsgAppendEntriesReply is the last sub-module of Module 4.
 	return nil
+}
+
+// persistOutbound builds the OutPersist reflecting the node's current
+// CurrentTerm/VotedFor/Log. Always emitted first, before any
+// OutSendMessage, whenever one of those three changed.
+func (n *NodeState) persistOutbound() Outbound {
+	return Outbound{
+		Kind:              OutPersist,
+		PersistedTerm:     n.CurrentTerm,
+		PersistedVotedFor: n.VotedFor,
+		PersistedLogLen:   len(n.Log),
+	}
 }
 
 // handleRequestVote implements the election restriction (Gotcha #1): a
@@ -57,12 +70,7 @@ func (n *NodeState) handleRequestVote(from int, msg *RaftMessage, rng *rand.Rand
 	// OutPersist first, always, whenever CurrentTerm or VotedFor changed —
 	// before the OutSendMessage below that depends on it.
 	if mustPersist {
-		out = append(out, Outbound{
-			Kind:              OutPersist,
-			PersistedTerm:     n.CurrentTerm,
-			PersistedVotedFor: n.VotedFor,
-			PersistedLogLen:   len(n.Log),
-		})
+		out = append(out, n.persistOutbound())
 	}
 
 	if grant {
@@ -98,12 +106,7 @@ func (n *NodeState) handleRequestVote(from int, msg *RaftMessage, rng *rand.Rand
 func (n *NodeState) handleRequestVoteReply(from int, msg *RaftMessage, mustPersist bool) []Outbound {
 	if n.Role != Candidate || msg.Term != n.CurrentTerm {
 		if mustPersist {
-			return []Outbound{{
-				Kind:              OutPersist,
-				PersistedTerm:     n.CurrentTerm,
-				PersistedVotedFor: n.VotedFor,
-				PersistedLogLen:   len(n.Log),
-			}}
+			return []Outbound{n.persistOutbound()}
 		}
 		return nil
 	}
@@ -148,4 +151,105 @@ func (n *NodeState) becomeLeader() []Outbound {
 	n.timerGen[TimerElection]++
 
 	return n.handleHeartbeatTimeout()
+}
+
+// handleAppendEntries implements §7's MsgAppendEntries contract: the log
+// matching property, truncate-and-append, and advancing CommitIndex.
+//
+// mustPersist is true when handleMessage already changed CurrentTerm for
+// this message (a step-down) — folded into the single OutPersist emitted
+// here if the log also changes, rather than persisting twice.
+func (n *NodeState) handleAppendEntries(from int, msg *RaftMessage, rng *rand.Rand, mustPersist bool) []Outbound {
+	if msg.Term < n.CurrentTerm {
+		// Stale leader — reject without touching timers or the log.
+		return []Outbound{{
+			Kind: OutSendMessage,
+			To:   from,
+			Message: &RaftMessage{
+				Kind: MsgAppendEntriesReply, Term: n.CurrentTerm, Success: false,
+			},
+		}}
+	}
+
+	// A legitimate leader for this term. Recognize it — this is also how
+	// a Candidate concedes an election it didn't win, without needing a
+	// strictly higher term to do so.
+	n.Role = Follower
+
+	n.timerGen[TimerElection]++
+	resetTimer := Outbound{
+		Kind:           OutResetTimer,
+		TimerKindField: TimerElection,
+		Duration:       sampleElectionTimeout(rng),
+	}
+
+	logMatches := msg.PrevLogIndex == 0 ||
+		(msg.PrevLogIndex <= uint64(len(n.Log)) && n.Log[msg.PrevLogIndex-1].Term == msg.PrevLogTerm)
+
+	if !logMatches {
+		var out []Outbound
+		if mustPersist {
+			out = append(out, n.persistOutbound())
+		}
+		out = append(out, resetTimer, Outbound{
+			Kind: OutSendMessage,
+			To:   from,
+			Message: &RaftMessage{
+				Kind: MsgAppendEntriesReply, Term: n.CurrentTerm, Success: false,
+			},
+		})
+		return out
+	}
+
+	logChanged := false
+	for i, entry := range msg.Entries {
+		idx := msg.PrevLogIndex + uint64(i) + 1
+		if idx <= uint64(len(n.Log)) {
+			if n.Log[idx-1].Term == entry.Term {
+				continue // already present and matches — nothing to do
+			}
+			n.Log = n.Log[:idx-1] // conflicting suffix — truncate (a follower-only operation; leaders never do this)
+			logChanged = true
+		}
+		n.Log = append(n.Log, entry)
+		logChanged = true
+	}
+
+	if msg.LeaderCommit > n.CommitIndex {
+		lastNewIndex := msg.PrevLogIndex + uint64(len(msg.Entries))
+		n.CommitIndex = min(msg.LeaderCommit, lastNewIndex)
+	}
+
+	var out []Outbound
+	if mustPersist || logChanged {
+		out = append(out, n.persistOutbound())
+	}
+	out = append(out, resetTimer)
+	out = append(out, n.applyCommittedEntries()...)
+	out = append(out, Outbound{
+		Kind: OutSendMessage,
+		To:   from,
+		Message: &RaftMessage{
+			Kind: MsgAppendEntriesReply, Term: n.CurrentTerm, Success: true,
+		},
+	})
+	return out
+}
+
+// applyCommittedEntries returns OutApply for every log entry between
+// LastApplied and CommitIndex, advancing LastApplied as it goes. Shared
+// by both the follower path above and the leader path in Module 4d —
+// anywhere CommitIndex can advance.
+func (n *NodeState) applyCommittedEntries() []Outbound {
+	var out []Outbound
+	for n.LastApplied < n.CommitIndex {
+		n.LastApplied++
+		entry := n.Log[n.LastApplied-1] // indices are 1-based and contiguous
+		out = append(out, Outbound{
+			Kind:         OutApply,
+			ApplyIndex:   entry.Index,
+			ApplyCommand: entry.Command,
+		})
+	}
+	return out
 }

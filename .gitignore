@@ -1,0 +1,23 @@
+
+# Go build artifacts
+/bin/
+/dist/
+*.exe
+*.test
+*.out
+
+# Environment
+.env
+.env.local
+
+# Node/React — Phase 5+, harmless to have now
+node_modules/
+web/dist/
+web/build/
+
+# Claude Code — personal, not shared
+.claude/settings.local.json
+
+# OS
+.DS_Store
+Thumbs.db

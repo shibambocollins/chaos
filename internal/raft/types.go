@@ -42,6 +42,12 @@ type RaftMessage struct {
 
 	// AppendEntriesReply
 	Success bool
+	// MatchIndex is the follower's log index after a successful append —
+	// PrevLogIndex + len(Entries) at the time of the original request.
+	// Without this, a leader can't tell which request a given reply
+	// belongs to, and a stale/duplicated/reordered reply could drag
+	// MatchIndex backward. Only meaningful when Success is true.
+	MatchIndex uint64
 	// Fast backtracking — OPTIONAL, an efficiency optimization, not a
 	// correctness requirement. Implement only after the naive
 	// one-entry-at-a-time nextIndex backoff already works and is tested.

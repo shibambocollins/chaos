@@ -16,6 +16,15 @@ const (
 	heartbeatInterval Time = 5
 )
 
+// sampleElectionTimeout draws a fresh random election timeout within
+// [electionTimeoutMin, electionTimeoutMax]. Every legitimate reset of the
+// election timer — whether from the timer itself firing or from granting
+// a vote — must resample rather than reuse a fixed value, or nodes drift
+// back toward synchronized timeouts over time.
+func sampleElectionTimeout(rng *rand.Rand) Time {
+	return electionTimeoutMin + Time(rng.Int63n(int64(electionTimeoutMax-electionTimeoutMin+1)))
+}
+
 func (n *NodeState) handleTimeout(kind TimerKind, rng *rand.Rand) []Outbound {
 	switch kind {
 	case TimerElection:
@@ -39,7 +48,7 @@ func (n *NodeState) handleElectionTimeout(rng *rand.Rand) []Outbound {
 	n.VotesReceived = map[int]bool{n.ID: true}
 
 	n.timerGen[TimerElection]++
-	timeout := electionTimeoutMin + Time(rng.Int63n(int64(electionTimeoutMax-electionTimeoutMin+1)))
+	timeout := sampleElectionTimeout(rng)
 
 	// OutPersist first — CurrentTerm/VotedFor changed and must be durable
 	// before the RequestVote sends below are allowed to go out.

@@ -102,21 +102,38 @@ func (n *NodeState) handleHeartbeatTimeout() []Outbound {
 	}
 
 	for _, peer := range n.Peers {
-		prevIndex, prevTerm := n.prevLogFor(peer)
-		out = append(out, Outbound{
-			Kind: OutSendMessage,
-			To:   peer,
-			Message: &RaftMessage{
-				Kind:         MsgAppendEntries,
-				Term:         n.CurrentTerm,
-				LeaderID:     n.ID,
-				PrevLogIndex: prevIndex,
-				PrevLogTerm:  prevTerm,
-				LeaderCommit: n.CommitIndex,
-			},
-		})
+		out = append(out, n.replicateTo(peer))
 	}
 	return out
+}
+
+// replicateTo builds the AppendEntries message peer should receive right
+// now: PrevLogIndex/PrevLogTerm anchor the log matching check, and Entries
+// carries everything from there to the leader's log tip — i.e. everything
+// the leader believes peer is still missing, per NextIndex[peer]. Shared by
+// the periodic heartbeat and by a client request that needs to push a new
+// entry out immediately rather than waiting for the next heartbeat tick.
+func (n *NodeState) replicateTo(peer int) Outbound {
+	prevIndex, prevTerm := n.prevLogFor(peer)
+
+	var entries []LogEntry
+	if prevIndex < uint64(len(n.Log)) {
+		entries = append(entries, n.Log[prevIndex:]...)
+	}
+
+	return Outbound{
+		Kind: OutSendMessage,
+		To:   peer,
+		Message: &RaftMessage{
+			Kind:         MsgAppendEntries,
+			Term:         n.CurrentTerm,
+			LeaderID:     n.ID,
+			PrevLogIndex: prevIndex,
+			PrevLogTerm:  prevTerm,
+			Entries:      entries,
+			LeaderCommit: n.CommitIndex,
+		},
+	}
 }
 
 // lastLogIndexAndTerm returns the index and term of the last entry in the

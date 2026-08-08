@@ -70,6 +70,8 @@ func (n *NodeState) Step(ev Event, rng *rand.Rand) []Outbound {
 			return nil // stale — a reset happened after this was scheduled
 		}
 		return n.handleTimeout(ev.TimerKindField, rng)
+	case EventClientRequest:
+		return n.handleClientRequest(ev.Command)
 	}
 	return nil
 }

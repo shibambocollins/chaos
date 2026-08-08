@@ -62,6 +62,7 @@ type EventKind int
 const (
 	EventMessageArrival EventKind = iota
 	EventTimerFire
+	EventClientRequest
 )
 
 type TimerKind int
@@ -85,6 +86,9 @@ type Event struct {
 	// EventTimerFire
 	TimerKindField TimerKind
 	TimerGen       uint64 // must match the node's current generation for this timer kind, or it's stale
+
+	// EventClientRequest
+	Command []byte
 }
 
 // ---------- Outbound (what a node's Step wants the simulator to do) ----------

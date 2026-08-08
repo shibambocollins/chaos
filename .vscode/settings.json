@@ -1,0 +1,10 @@
+{
+  "editor.formatOnSave": true,
+  "go.testFlags": ["-race", "-v"],
+  "[go]": {
+    "editor.defaultFormatter": "golang.go",
+    "editor.codeActionsOnSave": {
+      "source.organizeImports": true
+    }
+  }
+}

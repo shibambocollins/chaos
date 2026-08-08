@@ -2,22 +2,39 @@
 # Go build artifacts
 /bin/
 /dist/
+/chaos
+/chaos.exe
 *.exe
+*.exe~
 *.test
 *.out
+*.prof
+coverage.out
+coverage.html
+vendor/
 
-# Environment
+# Secrets / environment
 .env
-.env.local
+.env.*
+*.pem
+*.key
+*.p12
+credentials.json
 
 # Node/React — Phase 5+, harmless to have now
 node_modules/
 web/dist/
 web/build/
+web/.env*
 
 # Claude Code — personal, not shared
 .claude/settings.local.json
 
+# Editors/IDEs — personal, not shared
+.idea/
+*.iml
+
 # OS
 .DS_Store
 Thumbs.db
+desktop.ini

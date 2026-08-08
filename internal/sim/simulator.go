@@ -152,13 +152,22 @@ func (s *Simulator) SetFaultConfig(cfg FaultConfig) {
 // to keep advancing.
 func (s *Simulator) Run(until raft.Time) {
 	for s.queue.Len() > 0 && s.queue[0].At <= until {
-		s.step()
+		s.Step()
 	}
 }
 
-// step delivers the single next event to its target node's Step() and
-// applies every Outbound the node returns.
-func (s *Simulator) step() {
+// Step pops and delivers the single next scheduled event to its target
+// node's Step() and applies every Outbound the node returns, advancing s.now
+// to that event's At. Reports false (nothing done) if the queue is empty.
+//
+// Exported so a caller — e.g. a property-based fault-injection harness that
+// needs to inspect node state between individual events, not just after a
+// whole Run — can drive the loop one event at a time.
+func (s *Simulator) Step() bool {
+	if s.queue.Len() == 0 {
+		return false
+	}
+
 	ev := heap.Pop(&s.queue).(raft.Event)
 	s.now = ev.At
 
@@ -166,11 +175,12 @@ func (s *Simulator) step() {
 		// A dead node is simply never delivered to — no "you're dead"
 		// event, per context doc §4: a real crashed process doesn't get
 		// a heads-up either.
-		return
+		return true
 	}
 
 	node := s.nodes[ev.NodeID]
 	s.applyOutbound(ev.NodeID, node, node.Step(ev, s.rng))
+	return true
 }
 
 // applyOutbound turns everything a node's Step() asked for into simulator

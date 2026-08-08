@@ -23,9 +23,10 @@ func (n *NodeState) handleMessage(from int, msg *RaftMessage, rng *rand.Rand) []
 		return n.handleRequestVoteReply(from, msg, steppedDown)
 	case MsgAppendEntries:
 		return n.handleAppendEntries(from, msg, rng, steppedDown)
+	case MsgAppendEntriesReply:
+		return n.handleAppendEntriesReply(from, msg, steppedDown)
 	}
 
-	// MsgAppendEntriesReply is the last sub-module of Module 4.
 	return nil
 }
 
@@ -215,8 +216,8 @@ func (n *NodeState) handleAppendEntries(from int, msg *RaftMessage, rng *rand.Ra
 		logChanged = true
 	}
 
+	lastNewIndex := msg.PrevLogIndex + uint64(len(msg.Entries))
 	if msg.LeaderCommit > n.CommitIndex {
-		lastNewIndex := msg.PrevLogIndex + uint64(len(msg.Entries))
 		n.CommitIndex = min(msg.LeaderCommit, lastNewIndex)
 	}
 
@@ -230,7 +231,7 @@ func (n *NodeState) handleAppendEntries(from int, msg *RaftMessage, rng *rand.Ra
 		Kind: OutSendMessage,
 		To:   from,
 		Message: &RaftMessage{
-			Kind: MsgAppendEntriesReply, Term: n.CurrentTerm, Success: true,
+			Kind: MsgAppendEntriesReply, Term: n.CurrentTerm, Success: true, MatchIndex: lastNewIndex,
 		},
 	})
 	return out
@@ -250,6 +251,70 @@ func (n *NodeState) applyCommittedEntries() []Outbound {
 			ApplyIndex:   entry.Index,
 			ApplyCommand: entry.Command,
 		})
+	}
+	return out
+}
+
+// handleAppendEntriesReply implements §7's MsgAppendEntriesReply contract:
+// ignore stale replies, otherwise update the follower's replication
+// progress and recompute whether CommitIndex can advance.
+//
+// mustPersist mirrors handleRequestVoteReply: a stale reply here is
+// always the result of a step-down (Role no longer Leader for msg.Term),
+// so the only remaining obligation is persisting that.
+func (n *NodeState) handleAppendEntriesReply(from int, msg *RaftMessage, mustPersist bool) []Outbound {
+	if n.Role != Leader || msg.Term != n.CurrentTerm {
+		if mustPersist {
+			return []Outbound{n.persistOutbound()}
+		}
+		return nil
+	}
+
+	if !msg.Success {
+		// Naive one-entry-at-a-time backoff — fast backtrack via
+		// ConflictIndex/ConflictTerm is the optional follow-up, not this.
+		if n.NextIndex[from] > 1 {
+			n.NextIndex[from]--
+		}
+		// No immediate retry here: the next periodic heartbeat already
+		// resends AppendEntries from the (now backed-off) NextIndex[from].
+		return nil
+	}
+
+	// MatchIndex only ever moves forward — a stale/duplicated/reordered
+	// reply about an earlier request must never drag it backward.
+	if msg.MatchIndex > n.MatchIndex[from] {
+		n.MatchIndex[from] = msg.MatchIndex
+	}
+	n.NextIndex[from] = n.MatchIndex[from] + 1
+
+	// Gotcha #2: a leader may only advance CommitIndex off a majority
+	// count for entries from its OWN CURRENT term — never an older term,
+	// even if a majority now happens to have a copy. Older entries only
+	// become committed indirectly, as a side effect of a later
+	// current-term entry committing over them.
+	newCommitIndex := n.CommitIndex
+	lastIndex, _ := n.lastLogIndexAndTerm()
+	for N := lastIndex; N > n.CommitIndex; N-- {
+		if n.Log[N-1].Term != n.CurrentTerm {
+			continue
+		}
+		matches := 1 // the leader's own log always matches itself
+		for _, peer := range n.Peers {
+			if n.MatchIndex[peer] >= N {
+				matches++
+			}
+		}
+		if matches >= n.majority() {
+			newCommitIndex = N
+			break
+		}
+	}
+
+	var out []Outbound
+	if newCommitIndex > n.CommitIndex {
+		n.CommitIndex = newCommitIndex
+		out = append(out, n.applyCommittedEntries()...)
 	}
 	return out
 }

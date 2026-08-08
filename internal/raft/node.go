@@ -66,6 +66,35 @@ func NewNodeState(id int, peers []int) *NodeState {
 	}
 }
 
+// Restart models this node coming back up after a simulated crash: every
+// volatile field resets to a fresh node's defaults, while CurrentTerm/
+// VotedFor/Log — the persistent state — survive untouched. That split is
+// exactly what the correctness checklist calls out as an easy thing to get
+// wrong across a restart.
+//
+// Both timer generations are bumped so any EventTimerFire still sitting in
+// the simulator's queue from before the crash (e.g. a heartbeat timer, if
+// this node was Leader) is stale and gets ignored rather than firing
+// against the now-reset node. A fresh election timer is armed so the
+// restarted node actually rejoins rather than sitting inert forever.
+func (n *NodeState) Restart(rng *rand.Rand) []Outbound {
+	n.Role = Follower
+	n.CommitIndex = 0
+	n.LastApplied = 0
+	n.NextIndex = nil
+	n.MatchIndex = nil
+	n.VotesReceived = nil
+
+	n.timerGen[TimerElection]++
+	n.timerGen[TimerHeartbeat]++
+
+	return []Outbound{{
+		Kind:           OutResetTimer,
+		TimerKindField: TimerElection,
+		Duration:       sampleElectionTimeout(rng),
+	}}
+}
+
 // Step is the ENTIRE interface between Raft logic and the outside world.
 // No goroutines, no time.Now(), no I/O, no global rand — everything the
 // node needs is an argument, everything it wants done is a returned Outbound.

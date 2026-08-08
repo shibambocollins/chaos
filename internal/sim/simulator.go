@@ -29,12 +29,29 @@ type Simulator struct {
 	// either, so neither does a simulated one.
 	alive map[int]bool
 
+	// groupOf assigns each node a partition group when a partition is
+	// active; nodes in different groups can't reach each other. nil means
+	// no partition — everyone connected. Set by Partition, cleared by Heal.
+	groupOf map[int]int
+
+	// faults holds the current random drop/duplicate rates. Zero value
+	// (both 0) means no faults — existing tests built before this existed
+	// are unaffected.
+	faults FaultConfig
+
 	// persisted/applied record what each node's OutPersist/OutApply
 	// outbounds reported. Modeled as an ordering guarantee the simulator
 	// enforces (OutPersist before any OutSendMessage in the same batch),
 	// not real disk I/O — see context doc's persist-before-respond note.
 	persisted map[int]persistedState
 	applied   map[int][]appliedEntry
+}
+
+// FaultConfig holds the random per-message fault rates the simulator rolls
+// on every send. Zero value means no faults.
+type FaultConfig struct {
+	DropProbability      float64
+	DuplicateProbability float64
 }
 
 type persistedState struct {
@@ -77,6 +94,56 @@ func (s *Simulator) schedule(ev raft.Event) {
 	ev.Seq = s.nextSeq
 	s.nextSeq++
 	heap.Push(&s.queue, ev)
+}
+
+// Kill marks id as down. It receives no special "you're dead" event — it
+// simply stops being delivered to: step() already discards any event whose
+// target isn't alive, so nothing needs scrubbing from the queue here.
+func (s *Simulator) Kill(id int) {
+	s.alive[id] = false
+}
+
+// Restart brings id back up: marks it alive again and runs its
+// raft.NodeState.Restart outbound (a fresh election timer) through the same
+// applyOutbound path every other Step result goes through.
+func (s *Simulator) Restart(id int) {
+	s.alive[id] = true
+	node := s.nodes[id]
+	s.applyOutbound(id, node, node.Restart(s.rng))
+}
+
+// Partition splits the cluster into isolated groups: nodes in different
+// groups can no longer exchange messages until Heal is called. Every node
+// should appear in exactly one group — the doc's worked example
+// ({1,2,3} vs {4,5}) is the shape this models.
+func (s *Simulator) Partition(groups [][]int) {
+	s.groupOf = make(map[int]int, len(s.nodeIDs))
+	for g, group := range groups {
+		for _, id := range group {
+			s.groupOf[id] = g
+		}
+	}
+}
+
+// Heal reconnects the cluster: every node can reach every other node again.
+func (s *Simulator) Heal() {
+	s.groupOf = nil
+}
+
+// connected reports whether a and b can currently exchange messages — true
+// unless a partition is active and put them in different groups.
+func (s *Simulator) connected(a, b int) bool {
+	if s.groupOf == nil {
+		return true
+	}
+	return s.groupOf[a] == s.groupOf[b]
+}
+
+// SetFaultConfig sets the random drop/duplicate rates every subsequent send
+// rolls against. Existing tests that never call this keep the zero value —
+// no faults.
+func (s *Simulator) SetFaultConfig(cfg FaultConfig) {
+	s.faults = cfg
 }
 
 // Run pops and processes every scheduled event with At <= until, in

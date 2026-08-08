@@ -33,6 +33,51 @@ func TestScheduleDelivery_SchedulesMessageArrivalWithinLatencyBounds(t *testing.
 	}
 }
 
+func TestScheduleDelivery_DropProbabilityOneDropsEverything(t *testing.T) {
+	nodes := map[int]*raft.NodeState{
+		1: raft.NewNodeState(1, []int{2}),
+		2: raft.NewNodeState(2, []int{1}),
+	}
+	s := NewSimulator(nodes, rand.New(rand.NewSource(1)))
+	s.SetFaultConfig(FaultConfig{DropProbability: 1})
+
+	s.scheduleDelivery(1, 2, &raft.RaftMessage{})
+
+	if s.queue.Len() != 0 {
+		t.Fatalf("expected the message to be dropped, got %d scheduled", s.queue.Len())
+	}
+}
+
+func TestScheduleDelivery_DuplicateProbabilityOneSchedulesTwice(t *testing.T) {
+	nodes := map[int]*raft.NodeState{
+		1: raft.NewNodeState(1, []int{2}),
+		2: raft.NewNodeState(2, []int{1}),
+	}
+	s := NewSimulator(nodes, rand.New(rand.NewSource(1)))
+	s.SetFaultConfig(FaultConfig{DuplicateProbability: 1})
+
+	s.scheduleDelivery(1, 2, &raft.RaftMessage{})
+
+	if s.queue.Len() != 2 {
+		t.Fatalf("expected the message to be duplicated into 2 scheduled events, got %d", s.queue.Len())
+	}
+}
+
+func TestScheduleDelivery_PartitionedPairDropsRegardlessOfFaultConfig(t *testing.T) {
+	nodes := map[int]*raft.NodeState{
+		1: raft.NewNodeState(1, []int{2}),
+		2: raft.NewNodeState(2, []int{1}),
+	}
+	s := NewSimulator(nodes, rand.New(rand.NewSource(1)))
+	s.Partition([][]int{{1}, {2}})
+
+	s.scheduleDelivery(1, 2, &raft.RaftMessage{})
+
+	if s.queue.Len() != 0 {
+		t.Fatalf("expected a partitioned send to be dropped, got %d scheduled", s.queue.Len())
+	}
+}
+
 func TestScheduleDelivery_AssignsIncreasingSeq(t *testing.T) {
 	nodes := map[int]*raft.NodeState{
 		1: raft.NewNodeState(1, []int{2}),

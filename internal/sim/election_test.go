@@ -7,8 +7,7 @@ import (
 	"chaos/internal/raft"
 )
 
-func newThreeNodeCluster() map[int]*raft.NodeState {
-	ids := []int{1, 2, 3}
+func newCluster(ids []int) map[int]*raft.NodeState {
 	nodes := make(map[int]*raft.NodeState, len(ids))
 	for _, id := range ids {
 		var peers []int
@@ -20,6 +19,20 @@ func newThreeNodeCluster() map[int]*raft.NodeState {
 		nodes[id] = raft.NewNodeState(id, peers)
 	}
 	return nodes
+}
+
+func newThreeNodeCluster() map[int]*raft.NodeState {
+	return newCluster([]int{1, 2, 3})
+}
+
+// seedElectionTimers arms every node's first election timer at generation
+// 0, matching a freshly constructed NodeState's starting timerGen — the
+// caller-supplied kickoff every scenario test needs before anything else
+// can happen.
+func seedElectionTimers(s *Simulator) {
+	for _, id := range s.nodeIDs {
+		s.schedule(raft.Event{At: 0, NodeID: id, Kind: raft.EventTimerFire, TimerKindField: raft.TimerElection, TimerGen: 0})
+	}
 }
 
 func findLeader(s *Simulator) *raft.NodeState {
@@ -38,13 +51,7 @@ func findLeader(s *Simulator) *raft.NodeState {
 // injection at all yet.
 func TestSimulator_ElectsLeaderReplicatesAndApplies(t *testing.T) {
 	s := NewSimulator(newThreeNodeCluster(), rand.New(rand.NewSource(42)))
-
-	// Kick off every node's first election timer at generation 0, matching
-	// a freshly constructed NodeState's starting timerGen.
-	for _, id := range s.nodeIDs {
-		s.schedule(raft.Event{At: 0, NodeID: id, Kind: raft.EventTimerFire, TimerKindField: raft.TimerElection, TimerGen: 0})
-	}
-
+	seedElectionTimers(s)
 	s.Run(500)
 
 	leader := findLeader(s)

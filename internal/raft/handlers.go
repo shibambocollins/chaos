@@ -19,10 +19,12 @@ func (n *NodeState) handleMessage(from int, msg *RaftMessage, rng *rand.Rand) []
 	switch msg.Kind {
 	case MsgRequestVote:
 		return n.handleRequestVote(from, msg, rng, steppedDown)
+	case MsgRequestVoteReply:
+		return n.handleRequestVoteReply(from, msg, steppedDown)
 	}
 
-	// Remaining message kinds (RequestVoteReply, AppendEntries,
-	// AppendEntriesReply) are later sub-modules of Module 4.
+	// Remaining message kinds (AppendEntries, AppendEntriesReply) are
+	// later sub-modules of Module 4.
 	return nil
 }
 
@@ -82,4 +84,68 @@ func (n *NodeState) handleRequestVote(from int, msg *RaftMessage, rng *rand.Rand
 		},
 	})
 	return out
+}
+
+// handleRequestVoteReply implements §7's MsgRequestVoteReply contract:
+// ignore stale replies (no longer a Candidate, or the reply is for a term
+// this node isn't campaigning for), otherwise count granted votes and
+// become Leader on reaching a majority.
+//
+// mustPersist is true when handleMessage just stepped this node down
+// because of this exact reply's term — that's always a stale reply too
+// (stepping down set Role to Follower), so the only remaining obligation
+// is persisting the new term before discarding it.
+func (n *NodeState) handleRequestVoteReply(from int, msg *RaftMessage, mustPersist bool) []Outbound {
+	if n.Role != Candidate || msg.Term != n.CurrentTerm {
+		if mustPersist {
+			return []Outbound{{
+				Kind:              OutPersist,
+				PersistedTerm:     n.CurrentTerm,
+				PersistedVotedFor: n.VotedFor,
+				PersistedLogLen:   len(n.Log),
+			}}
+		}
+		return nil
+	}
+
+	if !msg.VoteGranted {
+		return nil
+	}
+
+	n.VotesReceived[from] = true
+	if len(n.VotesReceived) < n.majority() {
+		return nil
+	}
+
+	return n.becomeLeader()
+}
+
+// majority returns the number of votes needed to win an election, or
+// (later, Module 4c) the number of matching replicas needed to commit an
+// entry — half the cluster including self, plus one.
+func (n *NodeState) majority() int {
+	return (len(n.Peers)+1)/2 + 1
+}
+
+// becomeLeader transitions a Candidate that just won an election. It
+// initializes per-follower replication state, stops the election timer —
+// a leader never runs one, and bumping the generation without scheduling
+// a replacement invalidates any already-pending EventTimerFire so Step()
+// drops it as stale — and immediately sends heartbeats per §7 by reusing
+// the same construction the periodic heartbeat timer uses.
+func (n *NodeState) becomeLeader() []Outbound {
+	n.Role = Leader
+
+	lastIndex, _ := n.lastLogIndexAndTerm()
+	n.NextIndex = make(map[int]uint64, len(n.Peers))
+	n.MatchIndex = make(map[int]uint64, len(n.Peers))
+	for _, peer := range n.Peers {
+		n.NextIndex[peer] = lastIndex + 1
+		n.MatchIndex[peer] = 0
+	}
+	n.VotesReceived = nil
+
+	n.timerGen[TimerElection]++
+
+	return n.handleHeartbeatTimeout()
 }

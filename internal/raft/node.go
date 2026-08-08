@@ -45,6 +45,14 @@ type NodeState struct {
 	timerGen [2]uint64
 }
 
+// TimerGeneration returns the current generation for kind. A simulator
+// reading this immediately after Step() returns an OutResetTimer sees the
+// value the handler just bumped to — the generation an EventTimerFire must
+// carry to not be dropped as stale later.
+func (n *NodeState) TimerGeneration(kind TimerKind) uint64 {
+	return n.timerGen[kind]
+}
+
 func NewNodeState(id int, peers []int) *NodeState {
 	sorted := make([]int, len(peers))
 	copy(sorted, peers)

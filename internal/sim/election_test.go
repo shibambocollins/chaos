@@ -36,12 +36,7 @@ func seedElectionTimers(s *Simulator) {
 }
 
 func findLeader(s *Simulator) *raft.NodeState {
-	for _, id := range s.nodeIDs {
-		if s.nodes[id].Role == raft.Leader {
-			return s.nodes[id]
-		}
-	}
-	return nil
+	return s.Leader()
 }
 
 // TestSimulator_ElectsLeaderReplicatesAndApplies is the checkpoint the

@@ -46,7 +46,9 @@ go vet ./...
 Update this section as we move through the roadmap so a new session knows where things stand without me re-explaining.
 
 - [x] Phase 1 — Raft fundamentals
-- [ ] Phase 2 — Deterministic simulator architecture + Raft implementation (`internal/raft`, `internal/sim`)
+- [x] Phase 2 — Deterministic simulator architecture + Raft implementation (`internal/raft`, `internal/sim`) — handleMessage/handleTimeout (all four message kinds + both timers), client requests/log replication, the event-loop simulator (queue, Run/Step, scheduleDelivery), and Kill/Restart/Partition/Heal are all implemented and tested.
 - [ ] Phase 3 — React/TypeScript visualization
-- [ ] Phase 4 — Fault injection + correctness tests on the deterministic core
+- [x] Phase 4 — Fault injection + correctness tests on the deterministic core — random drop/duplicate, the §3 partition/heal worked example, replay-determinism check, and a property-based sweep (50 seeds × 200 rounds) asserting all five safety properties continuously, not just on a final snapshot.
 - [ ] Optional: experiment reporting, second protocol (2PC), Docker + real networking, multiplayer — see the context doc's roadmap for priority order if/when we get here
+
+`go test ./... -race` passes clean (MSYS2 UCRT64 GCC installed as the cgo toolchain — see `C:\msys64\ucrt64\bin`, added to `PATH`).

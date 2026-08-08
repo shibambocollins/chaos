@@ -13,6 +13,19 @@ const (
 	Leader
 )
 
+func (r Role) String() string {
+	switch r {
+	case Follower:
+		return "Follower"
+	case Candidate:
+		return "Candidate"
+	case Leader:
+		return "Leader"
+	default:
+		return "Unknown"
+	}
+}
+
 // NodeState is a single Raft node's complete state. Fields are grouped by
 // the persistent/volatile split called out in the correctness checklist:
 // CurrentTerm/VotedFor/Log must survive a simulated restart; everything

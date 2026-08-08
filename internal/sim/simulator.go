@@ -96,6 +96,35 @@ func (s *Simulator) schedule(ev raft.Event) {
 	heap.Push(&s.queue, ev)
 }
 
+// Schedule adds ev to the queue, same as schedule but exported for callers
+// outside the package — e.g. a driver seeding each node's initial election
+// timer, or a CLI submitting a client request — that need to put an event
+// on the queue without reaching into the Simulator's internals.
+func (s *Simulator) Schedule(ev raft.Event) {
+	s.schedule(ev)
+}
+
+// Now returns the simulator's current simulated time.
+func (s *Simulator) Now() raft.Time {
+	return s.now
+}
+
+// IsAlive reports whether id is currently up.
+func (s *Simulator) IsAlive(id int) bool {
+	return s.alive[id]
+}
+
+// Leader returns the node currently acting as Leader, or nil if none is —
+// e.g. mid-election, or a minority side stalled during a partition.
+func (s *Simulator) Leader() *raft.NodeState {
+	for _, id := range s.nodeIDs {
+		if s.nodes[id].Role == raft.Leader {
+			return s.nodes[id]
+		}
+	}
+	return nil
+}
+
 // Kill marks id as down. It receives no special "you're dead" event — it
 // simply stops being delivered to: step() already discards any event whose
 // target isn't alive, so nothing needs scrubbing from the queue here.
@@ -154,6 +183,22 @@ func (s *Simulator) Run(until raft.Time) {
 	for s.queue.Len() > 0 && s.queue[0].At <= until {
 		s.Step()
 	}
+}
+
+// RunObserving is Run plus a SafetyMonitor.Observe() call after every
+// individual event, not just once at the end of the batch — needed because
+// Election Safety and Leader Append-Only are properties of the whole
+// timeline, and a violation that briefly appears and self-corrects within
+// a batch would be invisible to a monitor only consulted after Run
+// returns. Returns the number of events processed.
+func (s *Simulator) RunObserving(monitor *SafetyMonitor, until raft.Time) int {
+	steps := 0
+	for s.queue.Len() > 0 && s.queue[0].At <= until {
+		s.Step()
+		monitor.Observe()
+		steps++
+	}
+	return steps
 }
 
 // Step pops and delivers the single next scheduled event to its target

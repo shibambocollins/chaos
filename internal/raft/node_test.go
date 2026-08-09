@@ -80,6 +80,22 @@ func TestRestart_ResetsVolatileStateButPreservesPersistent(t *testing.T) {
 	}
 }
 
+func TestRole_JSONRoundTrip(t *testing.T) {
+	for _, want := range []Role{Follower, Candidate, Leader} {
+		data, err := want.MarshalJSON()
+		if err != nil {
+			t.Fatalf("MarshalJSON(%v): %v", want, err)
+		}
+		var got Role
+		if err := got.UnmarshalJSON(data); err != nil {
+			t.Fatalf("UnmarshalJSON(%s): %v", data, err)
+		}
+		if got != want {
+			t.Fatalf("round trip: want %v, got %v", want, got)
+		}
+	}
+}
+
 func TestNewNodeState_PeersAreSortedAndExcludeSelf(t *testing.T) {
 	n := NewNodeState(2, []int{5, 1, 3})
 

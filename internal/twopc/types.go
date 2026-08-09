@@ -28,6 +28,17 @@ const (
 	VoteAbort
 )
 
+func (v Vote) String() string {
+	switch v {
+	case VoteCommit:
+		return "VoteCommit"
+	case VoteAbort:
+		return "VoteAbort"
+	default:
+		return "Unknown"
+	}
+}
+
 // Decision is the coordinator's outcome for the current transaction.
 // DecisionPending means no decision has been made yet.
 type Decision int
@@ -37,6 +48,19 @@ const (
 	DecisionCommit
 	DecisionAbort
 )
+
+func (d Decision) String() string {
+	switch d {
+	case DecisionPending:
+		return "DecisionPending"
+	case DecisionCommit:
+		return "DecisionCommit"
+	case DecisionAbort:
+		return "DecisionAbort"
+	default:
+		return "Unknown"
+	}
+}
 
 type Message struct {
 	Kind MessageKind
@@ -71,6 +95,21 @@ const (
 	ParticipantAborted
 )
 
+func (p ParticipantState) String() string {
+	switch p {
+	case ParticipantIdle:
+		return "Idle"
+	case ParticipantPrepared:
+		return "Prepared"
+	case ParticipantCommitted:
+		return "Committed"
+	case ParticipantAborted:
+		return "Aborted"
+	default:
+		return "Unknown"
+	}
+}
+
 // CoordinatorState is the coordinator's own persistent transaction state.
 // WaitingForVotes with no persisted Decision is the one state a Restart is
 // allowed to resolve unilaterally (default to Abort — safe, since nothing
@@ -83,6 +122,19 @@ const (
 	WaitingForVotes
 	Decided
 )
+
+func (c CoordinatorState) String() string {
+	switch c {
+	case CoordinatorIdle:
+		return "CoordinatorIdle"
+	case WaitingForVotes:
+		return "WaitingForVotes"
+	case Decided:
+		return "Decided"
+	default:
+		return "Unknown"
+	}
+}
 
 // ---------- NodeState ----------
 

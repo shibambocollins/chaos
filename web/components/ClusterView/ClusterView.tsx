@@ -46,6 +46,7 @@ export default function ClusterView({ tick, narrationByNode }: Props) {
       onClick={() => setFocus(null)}
       style={{
         position: "relative",
+        width: "100%",
         maxWidth: 1460,
         margin: "0 auto",
         height: 560,

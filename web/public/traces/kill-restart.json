@@ -1,0 +1,1158 @@
+{
+  "meta": {
+    "nodeCount": 5,
+    "scenario": "kill-restart"
+  },
+  "ticks": [
+    {
+      "at": 0,
+      "nodes": [
+        {
+          "id": 1,
+          "alive": true,
+          "role": "Follower",
+          "currentTerm": 0,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 2,
+          "alive": true,
+          "role": "Follower",
+          "currentTerm": 0,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 3,
+          "alive": true,
+          "role": "Follower",
+          "currentTerm": 0,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 4,
+          "alive": true,
+          "role": "Follower",
+          "currentTerm": 0,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 5,
+          "alive": true,
+          "role": "Follower",
+          "currentTerm": 0,
+          "logLen": 0,
+          "commitIndex": 0
+        }
+      ]
+    },
+    {
+      "at": 0,
+      "nodes": [
+        {
+          "id": 1,
+          "alive": true,
+          "role": "Candidate",
+          "currentTerm": 1,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 2,
+          "alive": true,
+          "role": "Follower",
+          "currentTerm": 0,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 3,
+          "alive": true,
+          "role": "Follower",
+          "currentTerm": 0,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 4,
+          "alive": true,
+          "role": "Follower",
+          "currentTerm": 0,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 5,
+          "alive": true,
+          "role": "Follower",
+          "currentTerm": 0,
+          "logLen": 0,
+          "commitIndex": 0
+        }
+      ],
+      "narration": [
+        "node 1 became Candidate (term 1)"
+      ]
+    },
+    {
+      "at": 0,
+      "nodes": [
+        {
+          "id": 1,
+          "alive": true,
+          "role": "Candidate",
+          "currentTerm": 1,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 2,
+          "alive": true,
+          "role": "Candidate",
+          "currentTerm": 1,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 3,
+          "alive": true,
+          "role": "Follower",
+          "currentTerm": 0,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 4,
+          "alive": true,
+          "role": "Follower",
+          "currentTerm": 0,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 5,
+          "alive": true,
+          "role": "Follower",
+          "currentTerm": 0,
+          "logLen": 0,
+          "commitIndex": 0
+        }
+      ],
+      "narration": [
+        "node 2 became Candidate (term 1)"
+      ]
+    },
+    {
+      "at": 0,
+      "nodes": [
+        {
+          "id": 1,
+          "alive": true,
+          "role": "Candidate",
+          "currentTerm": 1,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 2,
+          "alive": true,
+          "role": "Candidate",
+          "currentTerm": 1,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 3,
+          "alive": true,
+          "role": "Candidate",
+          "currentTerm": 1,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 4,
+          "alive": true,
+          "role": "Follower",
+          "currentTerm": 0,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 5,
+          "alive": true,
+          "role": "Follower",
+          "currentTerm": 0,
+          "logLen": 0,
+          "commitIndex": 0
+        }
+      ],
+      "narration": [
+        "node 3 became Candidate (term 1)"
+      ]
+    },
+    {
+      "at": 0,
+      "nodes": [
+        {
+          "id": 1,
+          "alive": true,
+          "role": "Candidate",
+          "currentTerm": 1,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 2,
+          "alive": true,
+          "role": "Candidate",
+          "currentTerm": 1,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 3,
+          "alive": true,
+          "role": "Candidate",
+          "currentTerm": 1,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 4,
+          "alive": true,
+          "role": "Candidate",
+          "currentTerm": 1,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 5,
+          "alive": true,
+          "role": "Follower",
+          "currentTerm": 0,
+          "logLen": 0,
+          "commitIndex": 0
+        }
+      ],
+      "narration": [
+        "node 4 became Candidate (term 1)"
+      ]
+    },
+    {
+      "at": 0,
+      "nodes": [
+        {
+          "id": 1,
+          "alive": true,
+          "role": "Candidate",
+          "currentTerm": 1,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 2,
+          "alive": true,
+          "role": "Candidate",
+          "currentTerm": 1,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 3,
+          "alive": true,
+          "role": "Candidate",
+          "currentTerm": 1,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 4,
+          "alive": true,
+          "role": "Candidate",
+          "currentTerm": 1,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 5,
+          "alive": true,
+          "role": "Candidate",
+          "currentTerm": 1,
+          "logLen": 0,
+          "commitIndex": 0
+        }
+      ],
+      "narration": [
+        "node 5 became Candidate (term 1)"
+      ]
+    },
+    {
+      "at": 18,
+      "nodes": [
+        {
+          "id": 1,
+          "alive": true,
+          "role": "Candidate",
+          "currentTerm": 2,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 2,
+          "alive": true,
+          "role": "Candidate",
+          "currentTerm": 1,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 3,
+          "alive": true,
+          "role": "Candidate",
+          "currentTerm": 1,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 4,
+          "alive": true,
+          "role": "Follower",
+          "currentTerm": 2,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 5,
+          "alive": true,
+          "role": "Candidate",
+          "currentTerm": 2,
+          "logLen": 0,
+          "commitIndex": 0
+        }
+      ],
+      "narration": [
+        "node 4 became Follower (term 2)"
+      ]
+    },
+    {
+      "at": 19,
+      "nodes": [
+        {
+          "id": 1,
+          "alive": true,
+          "role": "Candidate",
+          "currentTerm": 2,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 2,
+          "alive": true,
+          "role": "Follower",
+          "currentTerm": 2,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 3,
+          "alive": true,
+          "role": "Candidate",
+          "currentTerm": 2,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 4,
+          "alive": true,
+          "role": "Follower",
+          "currentTerm": 2,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 5,
+          "alive": true,
+          "role": "Candidate",
+          "currentTerm": 2,
+          "logLen": 0,
+          "commitIndex": 0
+        }
+      ],
+      "narration": [
+        "node 2 became Follower (term 2)"
+      ]
+    },
+    {
+      "at": 20,
+      "nodes": [
+        {
+          "id": 1,
+          "alive": true,
+          "role": "Candidate",
+          "currentTerm": 2,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 2,
+          "alive": true,
+          "role": "Follower",
+          "currentTerm": 2,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 3,
+          "alive": true,
+          "role": "Candidate",
+          "currentTerm": 2,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 4,
+          "alive": true,
+          "role": "Follower",
+          "currentTerm": 2,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 5,
+          "alive": true,
+          "role": "Leader",
+          "currentTerm": 2,
+          "logLen": 0,
+          "commitIndex": 0
+        }
+      ],
+      "narration": [
+        "node 5 became Leader (term 2)"
+      ]
+    },
+    {
+      "at": 23,
+      "nodes": [
+        {
+          "id": 1,
+          "alive": true,
+          "role": "Candidate",
+          "currentTerm": 2,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 2,
+          "alive": true,
+          "role": "Follower",
+          "currentTerm": 2,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 3,
+          "alive": true,
+          "role": "Follower",
+          "currentTerm": 2,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 4,
+          "alive": true,
+          "role": "Follower",
+          "currentTerm": 2,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 5,
+          "alive": true,
+          "role": "Leader",
+          "currentTerm": 2,
+          "logLen": 0,
+          "commitIndex": 0
+        }
+      ],
+      "narration": [
+        "node 3 became Follower (term 2)"
+      ]
+    },
+    {
+      "at": 24,
+      "nodes": [
+        {
+          "id": 1,
+          "alive": true,
+          "role": "Follower",
+          "currentTerm": 2,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 2,
+          "alive": true,
+          "role": "Follower",
+          "currentTerm": 2,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 3,
+          "alive": true,
+          "role": "Follower",
+          "currentTerm": 2,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 4,
+          "alive": true,
+          "role": "Follower",
+          "currentTerm": 2,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 5,
+          "alive": true,
+          "role": "Leader",
+          "currentTerm": 2,
+          "logLen": 0,
+          "commitIndex": 0
+        }
+      ],
+      "narration": [
+        "node 1 became Follower (term 2)"
+      ]
+    },
+    {
+      "at": 500,
+      "nodes": [
+        {
+          "id": 1,
+          "alive": true,
+          "role": "Follower",
+          "currentTerm": 2,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 2,
+          "alive": true,
+          "role": "Follower",
+          "currentTerm": 2,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 3,
+          "alive": true,
+          "role": "Follower",
+          "currentTerm": 2,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 4,
+          "alive": true,
+          "role": "Follower",
+          "currentTerm": 2,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 5,
+          "alive": false,
+          "role": "Leader",
+          "currentTerm": 2,
+          "logLen": 0,
+          "commitIndex": 0
+        }
+      ],
+      "narration": [
+        "node 5 killed"
+      ]
+    },
+    {
+      "at": 527,
+      "nodes": [
+        {
+          "id": 1,
+          "alive": true,
+          "role": "Candidate",
+          "currentTerm": 3,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 2,
+          "alive": true,
+          "role": "Follower",
+          "currentTerm": 2,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 3,
+          "alive": true,
+          "role": "Follower",
+          "currentTerm": 2,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 4,
+          "alive": true,
+          "role": "Follower",
+          "currentTerm": 2,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 5,
+          "alive": false,
+          "role": "Leader",
+          "currentTerm": 2,
+          "logLen": 0,
+          "commitIndex": 0
+        }
+      ],
+      "narration": [
+        "node 1 became Candidate (term 3)"
+      ]
+    },
+    {
+      "at": 527,
+      "nodes": [
+        {
+          "id": 1,
+          "alive": true,
+          "role": "Candidate",
+          "currentTerm": 3,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 2,
+          "alive": true,
+          "role": "Follower",
+          "currentTerm": 2,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 3,
+          "alive": true,
+          "role": "Candidate",
+          "currentTerm": 3,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 4,
+          "alive": true,
+          "role": "Follower",
+          "currentTerm": 2,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 5,
+          "alive": false,
+          "role": "Leader",
+          "currentTerm": 2,
+          "logLen": 0,
+          "commitIndex": 0
+        }
+      ],
+      "narration": [
+        "node 3 became Candidate (term 3)"
+      ]
+    },
+    {
+      "at": 528,
+      "nodes": [
+        {
+          "id": 1,
+          "alive": true,
+          "role": "Candidate",
+          "currentTerm": 3,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 2,
+          "alive": true,
+          "role": "Follower",
+          "currentTerm": 2,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 3,
+          "alive": true,
+          "role": "Candidate",
+          "currentTerm": 3,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 4,
+          "alive": true,
+          "role": "Candidate",
+          "currentTerm": 3,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 5,
+          "alive": false,
+          "role": "Leader",
+          "currentTerm": 2,
+          "logLen": 0,
+          "commitIndex": 0
+        }
+      ],
+      "narration": [
+        "node 4 became Candidate (term 3)"
+      ]
+    },
+    {
+      "at": 544,
+      "nodes": [
+        {
+          "id": 1,
+          "alive": true,
+          "role": "Candidate",
+          "currentTerm": 4,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 2,
+          "alive": true,
+          "role": "Follower",
+          "currentTerm": 4,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 3,
+          "alive": true,
+          "role": "Follower",
+          "currentTerm": 4,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 4,
+          "alive": true,
+          "role": "Candidate",
+          "currentTerm": 4,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 5,
+          "alive": false,
+          "role": "Leader",
+          "currentTerm": 2,
+          "logLen": 0,
+          "commitIndex": 0
+        }
+      ],
+      "narration": [
+        "node 3 became Follower (term 4)"
+      ]
+    },
+    {
+      "at": 548,
+      "nodes": [
+        {
+          "id": 1,
+          "alive": true,
+          "role": "Leader",
+          "currentTerm": 4,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 2,
+          "alive": true,
+          "role": "Follower",
+          "currentTerm": 4,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 3,
+          "alive": true,
+          "role": "Follower",
+          "currentTerm": 4,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 4,
+          "alive": true,
+          "role": "Candidate",
+          "currentTerm": 4,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 5,
+          "alive": false,
+          "role": "Leader",
+          "currentTerm": 2,
+          "logLen": 0,
+          "commitIndex": 0
+        }
+      ],
+      "narration": [
+        "node 1 became Leader (term 4)"
+      ]
+    },
+    {
+      "at": 552,
+      "nodes": [
+        {
+          "id": 1,
+          "alive": true,
+          "role": "Leader",
+          "currentTerm": 4,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 2,
+          "alive": true,
+          "role": "Follower",
+          "currentTerm": 4,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 3,
+          "alive": true,
+          "role": "Follower",
+          "currentTerm": 4,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 4,
+          "alive": true,
+          "role": "Follower",
+          "currentTerm": 4,
+          "logLen": 0,
+          "commitIndex": 0
+        },
+        {
+          "id": 5,
+          "alive": false,
+          "role": "Leader",
+          "currentTerm": 2,
+          "logLen": 0,
+          "commitIndex": 0
+        }
+      ],
+      "narration": [
+        "node 4 became Follower (term 4)"
+      ]
+    },
+    {
+      "at": 1004,
+      "nodes": [
+        {
+          "id": 1,
+          "alive": true,
+          "role": "Leader",
+          "currentTerm": 4,
+          "logLen": 1,
+          "commitIndex": 1
+        },
+        {
+          "id": 2,
+          "alive": true,
+          "role": "Follower",
+          "currentTerm": 4,
+          "logLen": 1,
+          "commitIndex": 0
+        },
+        {
+          "id": 3,
+          "alive": true,
+          "role": "Follower",
+          "currentTerm": 4,
+          "logLen": 1,
+          "commitIndex": 0
+        },
+        {
+          "id": 4,
+          "alive": true,
+          "role": "Follower",
+          "currentTerm": 4,
+          "logLen": 1,
+          "commitIndex": 0
+        },
+        {
+          "id": 5,
+          "alive": false,
+          "role": "Leader",
+          "currentTerm": 2,
+          "logLen": 0,
+          "commitIndex": 0
+        }
+      ],
+      "narration": [
+        "node 1 committed index 1"
+      ]
+    },
+    {
+      "at": 1009,
+      "nodes": [
+        {
+          "id": 1,
+          "alive": true,
+          "role": "Leader",
+          "currentTerm": 4,
+          "logLen": 1,
+          "commitIndex": 1
+        },
+        {
+          "id": 2,
+          "alive": true,
+          "role": "Follower",
+          "currentTerm": 4,
+          "logLen": 1,
+          "commitIndex": 1
+        },
+        {
+          "id": 3,
+          "alive": true,
+          "role": "Follower",
+          "currentTerm": 4,
+          "logLen": 1,
+          "commitIndex": 0
+        },
+        {
+          "id": 4,
+          "alive": true,
+          "role": "Follower",
+          "currentTerm": 4,
+          "logLen": 1,
+          "commitIndex": 0
+        },
+        {
+          "id": 5,
+          "alive": false,
+          "role": "Leader",
+          "currentTerm": 2,
+          "logLen": 0,
+          "commitIndex": 0
+        }
+      ],
+      "narration": [
+        "node 2 committed index 1"
+      ]
+    },
+    {
+      "at": 1010,
+      "nodes": [
+        {
+          "id": 1,
+          "alive": true,
+          "role": "Leader",
+          "currentTerm": 4,
+          "logLen": 1,
+          "commitIndex": 1
+        },
+        {
+          "id": 2,
+          "alive": true,
+          "role": "Follower",
+          "currentTerm": 4,
+          "logLen": 1,
+          "commitIndex": 1
+        },
+        {
+          "id": 3,
+          "alive": true,
+          "role": "Follower",
+          "currentTerm": 4,
+          "logLen": 1,
+          "commitIndex": 0
+        },
+        {
+          "id": 4,
+          "alive": true,
+          "role": "Follower",
+          "currentTerm": 4,
+          "logLen": 1,
+          "commitIndex": 1
+        },
+        {
+          "id": 5,
+          "alive": false,
+          "role": "Leader",
+          "currentTerm": 2,
+          "logLen": 0,
+          "commitIndex": 0
+        }
+      ],
+      "narration": [
+        "node 4 committed index 1"
+      ]
+    },
+    {
+      "at": 1011,
+      "nodes": [
+        {
+          "id": 1,
+          "alive": true,
+          "role": "Leader",
+          "currentTerm": 4,
+          "logLen": 1,
+          "commitIndex": 1
+        },
+        {
+          "id": 2,
+          "alive": true,
+          "role": "Follower",
+          "currentTerm": 4,
+          "logLen": 1,
+          "commitIndex": 1
+        },
+        {
+          "id": 3,
+          "alive": true,
+          "role": "Follower",
+          "currentTerm": 4,
+          "logLen": 1,
+          "commitIndex": 1
+        },
+        {
+          "id": 4,
+          "alive": true,
+          "role": "Follower",
+          "currentTerm": 4,
+          "logLen": 1,
+          "commitIndex": 1
+        },
+        {
+          "id": 5,
+          "alive": false,
+          "role": "Leader",
+          "currentTerm": 2,
+          "logLen": 0,
+          "commitIndex": 0
+        }
+      ],
+      "narration": [
+        "node 3 committed index 1"
+      ]
+    },
+    {
+      "at": 1300,
+      "nodes": [
+        {
+          "id": 1,
+          "alive": true,
+          "role": "Leader",
+          "currentTerm": 4,
+          "logLen": 1,
+          "commitIndex": 1
+        },
+        {
+          "id": 2,
+          "alive": true,
+          "role": "Follower",
+          "currentTerm": 4,
+          "logLen": 1,
+          "commitIndex": 1
+        },
+        {
+          "id": 3,
+          "alive": true,
+          "role": "Follower",
+          "currentTerm": 4,
+          "logLen": 1,
+          "commitIndex": 1
+        },
+        {
+          "id": 4,
+          "alive": true,
+          "role": "Follower",
+          "currentTerm": 4,
+          "logLen": 1,
+          "commitIndex": 1
+        },
+        {
+          "id": 5,
+          "alive": true,
+          "role": "Follower",
+          "currentTerm": 2,
+          "logLen": 0,
+          "commitIndex": 0
+        }
+      ],
+      "narration": [
+        "node 5 restarted",
+        "node 5 became Follower (term 2)"
+      ]
+    },
+    {
+      "at": 1305,
+      "nodes": [
+        {
+          "id": 1,
+          "alive": true,
+          "role": "Leader",
+          "currentTerm": 4,
+          "logLen": 1,
+          "commitIndex": 1
+        },
+        {
+          "id": 2,
+          "alive": true,
+          "role": "Follower",
+          "currentTerm": 4,
+          "logLen": 1,
+          "commitIndex": 1
+        },
+        {
+          "id": 3,
+          "alive": true,
+          "role": "Follower",
+          "currentTerm": 4,
+          "logLen": 1,
+          "commitIndex": 1
+        },
+        {
+          "id": 4,
+          "alive": true,
+          "role": "Follower",
+          "currentTerm": 4,
+          "logLen": 1,
+          "commitIndex": 1
+        },
+        {
+          "id": 5,
+          "alive": true,
+          "role": "Follower",
+          "currentTerm": 4,
+          "logLen": 1,
+          "commitIndex": 1
+        }
+      ],
+      "narration": [
+        "node 5 committed index 1"
+      ]
+    }
+  ]
+}

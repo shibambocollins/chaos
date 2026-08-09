@@ -21,7 +21,15 @@ func main() {
 	drop := flag.Float64("drop", 0.05, "per-message drop probability")
 	duplicate := flag.Float64("duplicate", 0.05, "per-message duplicate probability")
 	verbose := flag.Bool("verbose", false, "print the full report for every seed, not just failures")
+	trace := flag.String("trace", "", "run one curated scenario and export a JSON trace instead of the fault-injection report; one of: "+scenarioNames())
+	traceOut := flag.String("trace-out", "", "output path for -trace's JSON (required with -trace)")
+	traceSeed := flag.Int64("trace-seed", 1, "rng seed for -trace")
 	flag.Parse()
+
+	if *trace != "" {
+		runTraceExport(*trace, *traceOut, *traceSeed)
+		return
+	}
 
 	failed := 0
 	for i := 0; i < *seeds; i++ {

@@ -1,10 +1,8 @@
 package raft
 
 import (
-	"fmt"
 	"math/rand"
 	"sort"
-	"strconv"
 )
 
 type Role int
@@ -26,34 +24,6 @@ func (r Role) String() string {
 	default:
 		return "Unknown"
 	}
-}
-
-// MarshalJSON renders Role as its String() name rather than a bare int —
-// callers reading this over the network (the server package's live
-// snapshots) shouldn't have to know the underlying iota values.
-func (r Role) MarshalJSON() ([]byte, error) {
-	return []byte(strconv.Quote(r.String())), nil
-}
-
-// UnmarshalJSON is MarshalJSON's inverse — needed so a server-side
-// snapshot can round-trip through JSON in tests (and any future client)
-// without losing the Role, not just producing readable output one-way.
-func (r *Role) UnmarshalJSON(data []byte) error {
-	s, err := strconv.Unquote(string(data))
-	if err != nil {
-		return err
-	}
-	switch s {
-	case "Follower":
-		*r = Follower
-	case "Candidate":
-		*r = Candidate
-	case "Leader":
-		*r = Leader
-	default:
-		return fmt.Errorf("raft: unknown Role %q", s)
-	}
-	return nil
 }
 
 // NodeState is a single Raft node's complete state. Fields are grouped by

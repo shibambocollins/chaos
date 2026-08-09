@@ -1,17 +1,18 @@
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #eeeeec;
+  --foreground: #16181c;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #0b0d10;
+    --foreground: #e9ebef;
   }
 }
 
 html {
   height: 100%;
+  color-scheme: light dark;
 }
 
 html,
@@ -26,7 +27,7 @@ body {
   flex-direction: column;
   color: var(--foreground);
   background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -42,8 +43,32 @@ a {
   text-decoration: none;
 }
 
-@media (prefers-color-scheme: dark) {
-  html {
-    color-scheme: dark;
-  }
+/* Ported verbatim from the design prototype (Chaos Cluster -standalone-src-.html) */
+@keyframes chaosAmber {
+  0%, 100% { filter: brightness(1) }
+  50% { filter: brightness(1.24) }
+}
+@keyframes chaosDie {
+  0% { opacity: 1 } 7% { opacity: .18 } 11% { opacity: 1 } 20% { opacity: .08 }
+  25% { opacity: .82 } 38% { opacity: .04 } 44% { opacity: .46 } 58% { opacity: .02 }
+  70% { opacity: .12 } 100% { opacity: 0 }
+}
+@keyframes chaosBoot {
+  0% { opacity: 0 } 9% { opacity: .95 } 15% { opacity: .06 } 24% { opacity: 1 }
+  33% { opacity: .28 } 46% { opacity: 1 } 58% { opacity: .62 } 74% { opacity: 1 } 100% { opacity: 1 }
+}
+@keyframes chaosBreathe {
+  0%, 100% { opacity: .34; transform: scale(1) }
+  50% { opacity: .85; transform: scale(1.04) }
+}
+@keyframes chaosLed {
+  0%, 100% { opacity: .28 }
+  50% { opacity: 1 }
+}
+@keyframes chaosSweep {
+  0% { transform: translateY(-140%) }
+  100% { transform: translateY(430%) }
+}
+@keyframes chaosFade {
+  0% { opacity: 0 } 12% { opacity: 1 } 88% { opacity: 1 } 100% { opacity: 0 }
 }

@@ -185,6 +185,21 @@ func (s *Simulator) Run(until raft.Time) {
 	}
 }
 
+// RunEach pops and processes every scheduled event with At <= until,
+// calling observe after each one — the shared primitive behind
+// RunObserving and any other per-event watcher (e.g. a TraceRecorder) that
+// needs to see every intermediate state, not just Run's end-of-batch
+// result. Returns the number of events processed.
+func (s *Simulator) RunEach(until raft.Time, observe func()) int {
+	steps := 0
+	for s.queue.Len() > 0 && s.queue[0].At <= until {
+		s.Step()
+		observe()
+		steps++
+	}
+	return steps
+}
+
 // RunObserving is Run plus a SafetyMonitor.Observe() call after every
 // individual event, not just once at the end of the batch — needed because
 // Election Safety and Leader Append-Only are properties of the whole
@@ -192,13 +207,7 @@ func (s *Simulator) Run(until raft.Time) {
 // a batch would be invisible to a monitor only consulted after Run
 // returns. Returns the number of events processed.
 func (s *Simulator) RunObserving(monitor *SafetyMonitor, until raft.Time) int {
-	steps := 0
-	for s.queue.Len() > 0 && s.queue[0].At <= until {
-		s.Step()
-		monitor.Observe()
-		steps++
-	}
-	return steps
+	return s.RunEach(until, monitor.Observe)
 }
 
 // Step pops and delivers the single next scheduled event to its target

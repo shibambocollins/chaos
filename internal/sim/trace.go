@@ -65,7 +65,15 @@ func NewTraceRecorder(s *Simulator, scenario string) *TraceRecorder {
 
 // Observe captures the current state of every node as a new TraceTick,
 // deriving narration lines from whatever changed since the last Observe.
+// Most individual Steps don't change anything visible (a single leg of a
+// heartbeat fan-out arriving, a follower re-confirming the same term) — a
+// trace kept at full per-event granularity would be mostly redundant,
+// near-identical frames, which is a bad scrubber experience. So only the
+// very first Observe (the baseline) and ticks with actual narration are
+// kept; everything else is silently absorbed rather than recorded.
 func (r *TraceRecorder) Observe() {
+	isBaseline := len(r.prev) == 0
+
 	nodes := make([]TraceNodeState, 0, len(r.s.nodeIDs))
 	var narration []string
 
@@ -87,6 +95,9 @@ func (r *TraceRecorder) Observe() {
 		nodes = append(nodes, cur)
 	}
 
+	if !isBaseline && len(narration) == 0 {
+		return
+	}
 	r.ticks = append(r.ticks, TraceTick{At: uint64(r.s.now), Nodes: nodes, Narration: narration})
 }
 

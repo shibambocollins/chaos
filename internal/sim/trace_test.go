@@ -24,8 +24,11 @@ func TestTraceRecorder_CapturesTicksAndNarratesTransitions(t *testing.T) {
 	if trace.Meta.Scenario != "test-scenario" || trace.Meta.NodeCount != 3 {
 		t.Fatalf("expected meta {test-scenario, 3}, got %+v", trace.Meta)
 	}
-	if len(trace.Ticks) != 5 {
-		t.Fatalf("expected 5 ticks (1 baseline + 4 steps), got %d", len(trace.Ticks))
+	// Only the baseline plus ticks that actually changed something get
+	// kept — not one entry per Step, which would be mostly redundant
+	// no-op frames (see Observe's doc comment).
+	if len(trace.Ticks) == 0 {
+		t.Fatalf("expected at least the baseline tick, got 0")
 	}
 	if len(trace.Ticks[0].Nodes) != 3 {
 		t.Fatalf("expected 3 nodes per tick, got %d", len(trace.Ticks[0].Nodes))
@@ -33,6 +36,14 @@ func TestTraceRecorder_CapturesTicksAndNarratesTransitions(t *testing.T) {
 	for _, n := range trace.Ticks[0].Nodes {
 		if n.Role != "Follower" || !n.Alive {
 			t.Fatalf("expected baseline tick to show every node as an alive Follower, got %+v", n)
+		}
+	}
+	for i, tick := range trace.Ticks {
+		if i == 0 {
+			continue // baseline is kept unconditionally, even with no narration
+		}
+		if len(tick.Narration) == 0 {
+			t.Fatalf("expected every non-baseline tick to carry narration (no-op ticks should be dropped), tick %d: %+v", i, tick)
 		}
 	}
 

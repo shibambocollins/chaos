@@ -2,17 +2,20 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { TraceNodeState } from "@/lib/trace";
+import type { ScenarioId } from "@/lib/loadTrace";
+import { DEVICE_ACTIONS, type DeviceAction } from "@/lib/scenarioActions";
+import { translate } from "@/lib/plainEnglish";
 
-// Two palettes, on purpose. Phosphor colours are for pixels behind glass
-// — they're bright because a CRT is emissive. Plate colours are for the
-// device label printed on the white workspace, where the same green
-// would be unreadable. Using one palette for both is what makes a UI
-// look like it was picked from a swatch generator rather than built.
-const P_GREEN = "#3fbf63";
-const P_GREEN_DIM = "#2c7a45";
-const P_AMBER = "#e0a33a";
-const P_BLUE = "#6fa8dc";
-const P_GREY = "#96a0ac";
+// Two palettes, on purpose. Phosphor colours are for pixels behind
+// glass, and they are bright because a CRT is emissive. Plate colours
+// are for the device label printed on the white workspace, where the
+// same green would be unreadable. Using one palette for both is what
+// makes a UI look like it was picked from a swatch generator.
+const P_GREEN = "#46d16d";
+const P_GREEN_DIM = "#2f8a4c";
+const P_AMBER = "#e8ac42";
+const P_BLUE = "#79b2e6";
+const P_GREY = "#9aa4b0";
 
 export type NodeKind = "tower" | "laptop" | "aio";
 
@@ -22,31 +25,40 @@ interface Props {
   narration: string[]; // this node's own narration lines up to the current tick
   focused: boolean;
   dimmed: boolean;
+  activeScenario: ScenarioId;
   onFocus: () => void;
+  onAction: (a: DeviceAction) => void;
 }
 
 type Transient = "none" | "dying" | "booting";
+type Tab = "status" | "log" | "act";
 
-// NodeCard is the visual heart of the whole project: one Raft node,
-// rendered as a small PC whose screen doubles as its data readout. Ported
-// from the Chaos Cluster design prototype, with two real differences:
-// there's no live fake simulation (every prop comes from a recorded trace
-// tick) and no interactive controls (ROLE/NET overrides, a CLI you can
-// type into) — you can't "kill" a node in a replay, that already did or
-// didn't happen.
+// NodeCard is the visual heart of the project: one Raft node drawn as a
+// beige desktop machine whose screen doubles as its readout, and whose
+// screen is also where you drive the thing from.
 //
-// Selection is a marching-ants marquee plus a printed label, the way a
-// device is selected on a network-simulator canvas. It replaced a
-// breathing coloured halo, which read as decoration and — worse — used
-// the same visual channel (coloured glow) that already meant "role".
-export default function NodeCard({ node, kind, narration, focused, dimmed, onFocus }: Props) {
-  const [tab, setTab] = useState<"gui" | "cli">("gui");
+// Putting the scenario controls on the devices instead of in a toolbar
+// is the difference between "pick a data file" and "do something to this
+// computer". The actions are still replays underneath, and the ACTIONS
+// screen says so, but the gesture is the one a person expects: click the
+// machine, tell it to switch off.
+export default function NodeCard({
+  node,
+  kind,
+  narration,
+  focused,
+  dimmed,
+  activeScenario,
+  onFocus,
+  onAction,
+}: Props) {
+  const [tab, setTab] = useState<Tab>("status");
   const prevAlive = useRef(node.alive);
   const [transient, setTransient] = useState<Transient>("none");
 
   // The trace only records discrete before/after states (a kill jumps
   // straight from alive:true to alive:false in one tick, no in-between
-  // frame) — but the die/boot animations are worth keeping. Trigger them
+  // frame) but the die/boot animations are worth keeping. Trigger them
   // as a transient overlay whenever `alive` actually flips between
   // renders, rather than needing the trace itself to carry a "dying" state.
   useEffect(() => {
@@ -71,20 +83,22 @@ export default function NodeCard({ node, kind, narration, focused, dimmed, onFoc
   const isLeader = on && node.role === "Leader";
   const isCand = on && node.role === "Candidate";
 
-  let roleText: string, roleColor: string;
+  // Plain wording first, exact Raft term underneath. Someone who knows
+  // the protocol still gets "Leader / term 2"; someone who does not can
+  // read the cluster off the screens without being taught the words.
+  let plainState: string, techState: string, roleColor: string;
   if (booting) {
-    roleText = "BOOTING"; roleColor = P_BLUE;
+    plainState = "STARTING UP"; techState = "restoring state"; roleColor = P_BLUE;
   } else if (!on) {
-    roleText = "OFFLINE"; roleColor = "#3a424c";
+    plainState = "POWERED OFF"; techState = "unreachable"; roleColor = "#3a424c";
   } else if (isLeader) {
-    roleText = "LEADER"; roleColor = P_GREEN;
+    plainState = "IN CHARGE"; techState = `Leader · term ${node.currentTerm}`; roleColor = P_GREEN;
   } else if (isCand) {
-    roleText = "CANDIDATE"; roleColor = P_AMBER;
+    plainState = "ASKING FOR VOTES"; techState = `Candidate · term ${node.currentTerm}`; roleColor = P_AMBER;
   } else {
-    roleText = "FOLLOWER"; roleColor = P_GREY;
+    plainState = "FOLLOWING"; techState = `Follower · term ${node.currentTerm}`; roleColor = P_GREY;
   }
 
-  // Plate colours: same four states, darkened for print on white.
   const plateColor = booting
     ? "var(--accent)"
     : !on
@@ -94,6 +108,7 @@ export default function NodeCard({ node, kind, narration, focused, dimmed, onFoc
         : isCand
           ? "var(--busy)"
           : "var(--ink-muted)";
+  const plateWord = booting ? "starting" : !on ? "powered off" : isLeader ? "in charge" : isCand ? "voting" : "following";
 
   let ticks = "";
   for (let k = 0; k < 12; k++) {
@@ -104,7 +119,6 @@ export default function NodeCard({ node, kind, narration, focused, dimmed, onFoc
   const isTower = kind === "tower";
   const isLaptop = kind === "laptop";
   const isAio = kind === "aio";
-  const hasStand = isTower || isAio;
   const closed = isLaptop && !on && !booting;
 
   const screenOpacity = !on && !dying ? 0 : 1;
@@ -115,30 +129,17 @@ export default function NodeCard({ node, kind, narration, focused, dimmed, onFoc
       : isCand
         ? "chaosAmber 1.1s ease-in-out infinite"
         : "none";
-  // Inset phosphor bloom only — the outer coloured glow the chassis used
-  // to throw onto the canvas is gone, since a monitor doesn't light up
-  // the desk it stands on that much, and on a white workspace it read as
-  // a UI effect rather than as a screen.
   const screenGlow = !on
-    ? "inset 0 0 0 1px rgba(255,255,255,.03)"
+    ? "inset 0 0 0 1px rgba(0,0,0,.5)"
     : booting
-      ? "inset 0 0 26px rgba(111,168,220,.2)"
+      ? "inset 0 0 26px rgba(121,178,230,.2)"
       : isLeader
-        ? "inset 0 0 30px rgba(63,191,99,.16)"
+        ? "inset 0 0 30px rgba(70,209,109,.15)"
         : isCand
-          ? "inset 0 0 30px rgba(224,163,58,.18)"
-          : "inset 0 0 22px rgba(150,170,200,.08)";
-  const chassisShadow = "0 6px 12px rgba(30,34,40,.22), 0 1px 2px rgba(30,34,40,.3)";
-  const bezelColor = isLeader ? "#3c4a41" : "#31363d";
-  const pwrColor = !on ? "#2a3038" : booting ? P_BLUE : isLeader ? P_GREEN : isCand ? P_AMBER : "#7c8794";
-  const pwrRing = on ? "#4d5661" : "#2b3138";
-  const pwrGlow = !on
-    ? "transparent"
-    : isLeader
-      ? "rgba(63,191,99,.42)"
-      : isCand
-        ? "rgba(224,163,58,.42)"
-        : "rgba(140,160,180,.22)";
+          ? "inset 0 0 30px rgba(232,172,66,.17)"
+          : "inset 0 0 22px rgba(150,170,200,.07)";
+
+  const pwrColor = !on ? "#6f6a5c" : booting ? P_BLUE : isLeader ? "#2fbf5c" : isCand ? "#e0a01f" : "#5f9b6f";
   const ledAnim = booting
     ? "chaosLed .35s ease-in-out infinite"
     : isCand
@@ -147,12 +148,10 @@ export default function NodeCard({ node, kind, narration, focused, dimmed, onFoc
         ? "chaosLed 1.9s ease-in-out infinite"
         : "none";
 
-  const displayH = isAio ? "158px" : "150px";
-  const bezel = isAio ? "7px 7px 17px" : "8px";
-  const displayRadius = isLaptop ? "6px 6px 2px 2px" : "5px";
-  const lidTransform = closed ? "perspective(900px) rotateX(-86deg)" : "perspective(900px) rotateX(0deg)";
-
-  const kindLabel = isTower ? "Tower" : isAio ? "All-in-One" : "Laptop";
+  const bezelPad = isLaptop ? 11 : 15;
+  const screenH = isAio ? 132 : 128;
+  const lidTransform = closed ? "perspective(900px) rotateX(-84deg)" : "perspective(900px) rotateX(0deg)";
+  const kindLabel = isTower ? "Desktop" : isAio ? "All-in-One" : "Laptop";
 
   return (
     <div
@@ -175,171 +174,198 @@ export default function NodeCard({ node, kind, narration, focused, dimmed, onFoc
           aria-hidden
         >
           <rect
-            x="0.5"
-            y="0.5"
-            width="99.6%"
-            height="99.6%"
-            fill="none"
-            stroke="var(--accent)"
-            strokeWidth="1"
-            strokeDasharray="6 6"
+            x="0.5" y="0.5" width="99.6%" height="99.6%"
+            fill="none" stroke="var(--accent)" strokeWidth="1" strokeDasharray="6 6"
             style={{ animation: "chaosMarquee .6s linear infinite" }}
           />
         </svg>
       )}
 
       <div style={{ position: "relative", display: "flex", alignItems: "flex-end", gap: 9 }}>
-        {isTower && (
-          <div
-            style={{
-              width: 48, height: 128, borderRadius: 3, boxSizing: "border-box", padding: "8px 7px",
-              display: "flex", flexDirection: "column", gap: 6,
-              background: "linear-gradient(160deg, #2c3138, #171a1e)", border: "1px solid #383e46",
-              boxShadow: chassisShadow,
-            }}
-          >
-            <div style={{ height: 7, borderRadius: 1, background: "#1b1f24" }} />
-            <div style={{ height: 7, borderRadius: 1, background: "#1b1f24" }} />
-            <div style={{ height: 4, width: "60%", borderRadius: 1, background: isLeader ? P_GREEN : isCand ? P_AMBER : "#3b434d", opacity: 0.8 }} />
-            <div style={{ flex: 1 }} />
-            <div
-              title="power"
-              style={{
-                alignSelf: "center", width: 20, height: 20, borderRadius: "50%",
-                display: "grid", placeItems: "center",
-                border: `1px solid ${pwrRing}`, background: "#101317", color: pwrColor,
-                fontSize: 10, lineHeight: 1,
-                boxShadow: `0 0 8px ${pwrGlow}`,
-                transition: "color .3s ease, box-shadow .3s ease, border-color .3s ease",
-              }}
-            >
-              &#9211;
-            </div>
-          </div>
-        )}
+        {isTower && <Tower on={on} pwrColor={pwrColor} ledAnim={ledAnim} />}
 
         <div style={{ position: "relative" }}>
+          {/* Monitor: thick putty bezel around a recessed tube. */}
           <div
             style={{
-              position: "relative", width: 218, height: displayH, boxSizing: "border-box", padding: bezel,
-              borderRadius: displayRadius,
-              background: "linear-gradient(168deg, #2b3037, #14171b 66%)",
-              border: `1px solid ${bezelColor}`, boxShadow: chassisShadow,
+              position: "relative", width: 236, boxSizing: "border-box",
+              padding: `${bezelPad}px ${bezelPad}px ${isLaptop ? bezelPad : 22}px`,
+              borderRadius: isLaptop ? "6px 6px 2px 2px" : "7px 7px 4px 4px",
+              background: "linear-gradient(168deg, var(--case-lit), var(--case) 45%, var(--case-dim))",
+              border: "1px solid var(--case-edge)",
+              borderTopColor: "#f2edde",
+              borderLeftColor: "#eee9d9",
+              boxShadow: "0 7px 13px rgba(60,55,40,.26), 0 1px 2px rgba(60,55,40,.3)",
               transformOrigin: "bottom center", transform: lidTransform,
-              transition: "transform .55s cubic-bezier(.3,.8,.3,1), box-shadow .5s ease, border-color .5s ease",
+              transition: "transform .55s cubic-bezier(.3,.8,.3,1)",
             }}
           >
-            <div style={{ position: "relative", width: "100%", height: "100%", borderRadius: 2, overflow: "hidden", background: "#05070a", boxShadow: screenGlow, transition: "box-shadow .45s ease" }}>
+            <div
+              style={{
+                position: "relative", height: screenH, overflow: "hidden",
+                background: "var(--crt)",
+                // Inner shadow on the top/left reads as the tube sitting
+                // down inside the bezel rather than pasted onto it.
+                boxShadow: `${screenGlow}, inset 0 2px 5px rgba(0,0,0,.9), 0 0 0 1px var(--case-shadow)`,
+                transition: "box-shadow .45s ease",
+              }}
+            >
               <div style={{ position: "absolute", inset: 0, opacity: screenOpacity, animation: screenAnim, transition: "opacity .35s ease", display: "flex", flexDirection: "column", fontFamily: "var(--mono-font)" }}>
-                <div style={{ flex: "none", height: 17, display: "flex", alignItems: "center", gap: 6, padding: "0 5px", background: "linear-gradient(180deg, #232a33, #171d24)", borderBottom: "1px solid #0b0f14" }}>
+                <div style={{ flex: "none", height: 16, display: "flex", alignItems: "center", gap: 5, padding: "0 4px", background: "#1a2028", borderBottom: "1px solid #000" }}>
                   <span style={{ width: 6, height: 6, background: roleColor }} />
-                  <span style={{ fontSize: 9.5, letterSpacing: ".08em", color: "#98a2ae" }}>n{node.id}</span>
+                  <span style={{ fontSize: 9, letterSpacing: ".06em", color: "#8f99a5" }}>PC{node.id}</span>
                   <span style={{ flex: 1 }} />
-                  <ScreenTab label="GUI" active={tab === "gui"} onSelect={() => setTab("gui")} />
-                  <ScreenTab label="CLI" active={tab === "cli"} onSelect={() => setTab("cli")} />
+                  <ScreenTab label="STATUS" active={tab === "status"} onSelect={() => setTab("status")} />
+                  <ScreenTab label="LOG" active={tab === "log"} onSelect={() => setTab("log")} />
+                  <ScreenTab label="DO" active={tab === "act"} onSelect={() => setTab("act")} />
                 </div>
 
-                <div style={{ flex: 1, minHeight: 0, padding: "7px 8px", boxSizing: "border-box", display: "flex", flexDirection: "column", gap: 6 }}>
-                  {tab === "gui" ? (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 6, height: "100%" }}>
-                      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
-                        <span style={{ fontSize: 11, letterSpacing: ".07em", color: roleColor }}>{roleText}</span>
-                        <span style={{ fontSize: 10, color: "#5d6673" }}>term {node.currentTerm}</span>
-                      </div>
-                      <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-                        <div style={{ fontSize: 10, letterSpacing: 0.5, color: isLeader ? P_GREEN : on ? P_GREEN_DIM : "#242a32" }}>{ticks}</div>
-                        <div style={{ fontSize: 8.5, color: "#4d5765" }}>
-                          log {on ? node.logLen : 0} &middot; commit {on ? node.commitIndex : 0} &middot;{" "}
-                          {booting ? "restoring" : !on ? "halted" : isLeader ? "heartbeat" : isCand ? "election" : "idle"}
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div style={{ flex: 1, minHeight: 0, overflow: "auto", whiteSpace: "pre-wrap", fontSize: 9, lineHeight: 1.42, color: "#7f8b99" }}>
-                      {narration.length > 0 ? narration.join("\n") : "(no events yet)"}
-                    </div>
+                <div style={{ flex: 1, minHeight: 0, padding: 6, boxSizing: "border-box" }}>
+                  {tab === "status" && (
+                    <StatusScreen
+                      plainState={plainState}
+                      techState={techState}
+                      roleColor={roleColor}
+                      ticks={ticks}
+                      tickColor={isLeader ? P_GREEN : on ? P_GREEN_DIM : "#242a32"}
+                      logLen={on ? node.logLen : 0}
+                      commitIndex={on ? node.commitIndex : 0}
+                    />
                   )}
+                  {tab === "log" && <LogScreen narration={narration} />}
+                  {tab === "act" && <ActionScreen activeScenario={activeScenario} onAction={onAction} />}
                 </div>
               </div>
 
               <div style={{ position: "absolute", inset: 0, pointerEvents: "none", background: "repeating-linear-gradient(180deg, rgba(255,255,255,.05) 0 1px, transparent 1px 3px)" }} />
-              <div style={{ position: "absolute", left: 0, right: 0, height: "32%", pointerEvents: "none", background: "linear-gradient(180deg, transparent, rgba(255,255,255,.035), transparent)", animation: "chaosSweep 6s linear infinite" }} />
-              <div style={{ position: "absolute", inset: 0, pointerEvents: "none", boxShadow: "inset 0 0 0 1px rgba(255,255,255,.05), inset 0 12px 24px rgba(255,255,255,.025)" }} />
+              <div style={{ position: "absolute", left: 0, right: 0, height: "32%", pointerEvents: "none", background: "linear-gradient(180deg, transparent, rgba(255,255,255,.03), transparent)", animation: "chaosSweep 6s linear infinite" }} />
             </div>
 
-            {isAio && (
-              <div style={{ position: "absolute", left: 0, right: 0, bottom: 2, height: 12, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 8px", boxSizing: "border-box" }}>
-                <span style={{ fontSize: 7.5, letterSpacing: ".18em", color: "#565d67" }}>CHAOS AIO</span>
-                <span style={{ width: 11, height: 11, borderRadius: "50%", border: `1px solid ${pwrRing}`, background: pwrColor, boxShadow: `0 0 6px ${pwrGlow}`, display: "block" }} />
+            {!isLaptop && (
+              <div style={{ position: "absolute", left: bezelPad, right: bezelPad, bottom: 5, height: 13, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ fontSize: 7.5, letterSpacing: ".16em", color: "#8c8471", fontFamily: "var(--ui-font)" }}>CHAOS</span>
+                <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                  <span style={{ width: 14, height: 3, background: "var(--case-vent)", borderTop: "1px solid var(--case-shadow)" }} />
+                  <span style={{ width: 14, height: 3, background: "var(--case-vent)", borderTop: "1px solid var(--case-shadow)" }} />
+                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: pwrColor, animation: ledAnim, border: "1px solid rgba(0,0,0,.35)" }} />
+                </span>
               </div>
             )}
           </div>
 
-          {hasStand && (
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-              <div style={{ width: 26, height: 14, background: "linear-gradient(180deg, #242930, #191d21)" }} />
-              <div style={{ width: 92, height: 6, borderRadius: 2, background: "#242930", boxShadow: "0 4px 9px rgba(30,34,40,.28)" }} />
-            </div>
-          )}
-
-          {isLaptop && (
-            <div
-              style={{
-                position: "relative", width: 238, marginLeft: -10, height: 15, borderRadius: "2px 2px 5px 5px",
-                background: "linear-gradient(180deg, #2b3037, #1b1f24)", border: "1px solid #383e46",
-                boxShadow: chassisShadow, display: "flex", alignItems: "center",
-                justifyContent: "space-between", padding: "0 10px", boxSizing: "border-box",
-              }}
-            >
-              <div style={{ display: "flex", gap: 2 }}>
-                <span style={{ width: 30, height: 4, borderRadius: 1, background: "#14181d" }} />
-                <span style={{ width: 30, height: 4, borderRadius: 1, background: "#14181d" }} />
-                <span style={{ width: 30, height: 4, borderRadius: 1, background: "#14181d" }} />
-              </div>
-              <span style={{ width: 5, height: 5, borderRadius: "50%", background: pwrColor, boxShadow: `0 0 5px ${pwrGlow}`, animation: ledAnim, display: "block" }} />
-            </div>
-          )}
+          {!isLaptop && <Stand />}
+          {isLaptop && <LaptopBase pwrColor={pwrColor} ledAnim={ledAnim} />}
         </div>
       </div>
 
-      {isTower && (
-        <div style={{ margin: "8px 0 0 0", width: 214, height: 22, borderRadius: 2, background: "linear-gradient(180deg, #262b31, #1a1e23)", border: "1px solid #343a42", display: "flex", flexDirection: "column", justifyContent: "center", gap: 3, padding: "0 8px", boxSizing: "border-box" }}>
-          <div style={{ display: "flex", gap: 2 }}>
-            <span style={{ flex: 1, height: 3, borderRadius: 1, background: "#14181d" }} />
-            <span style={{ flex: 1, height: 3, borderRadius: 1, background: "#14181d" }} />
-            <span style={{ flex: 1, height: 3, borderRadius: 1, background: "#14181d" }} />
-          </div>
-        </div>
-      )}
+      {isTower && <Keyboard />}
 
-      {/* Device label, printed on the workspace under the device — the
-          network-diagram convention, in the UI font rather than the
-          screen font, because it isn't part of the machine. */}
+      {/* Device label printed on the workspace, network-diagram style:
+          in the UI font, not the screen font, because it is not part of
+          the machine. */}
       <div
         style={{
-          marginTop: 8,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 6,
-          fontFamily: "var(--ui-font)",
-          fontSize: 11,
-          color: "var(--ink-muted)",
+          marginTop: 8, display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+          fontFamily: "var(--ui-font)", fontSize: 11, color: "var(--ink-muted)",
         }}
       >
-        <strong style={{ color: "var(--ink)", fontWeight: 600 }}>Node{node.id}</strong>
+        <strong style={{ color: "var(--ink)", fontWeight: 600 }}>PC{node.id}</strong>
         <span style={{ color: "var(--ink-faint)" }}>{kindLabel}</span>
         <span
           style={{
-            padding: "0 5px",
-            fontSize: 10,
-            color: plateColor,
-            border: `1px solid ${plateColor}`,
-            background: "rgba(255,255,255,.72)",
+            padding: "0 5px", fontSize: 10, color: plateColor,
+            border: `1px solid ${plateColor}`, background: "rgba(255,255,255,.75)",
           }}
         >
-          {roleText.toLowerCase()}
+          {plateWord}
         </span>
+      </div>
+    </div>
+  );
+}
+
+/* ---- Screens ------------------------------------------------------ */
+
+function StatusScreen({
+  plainState, techState, roleColor, ticks, tickColor, logLen, commitIndex,
+}: {
+  plainState: string; techState: string; roleColor: string;
+  ticks: string; tickColor: string; logLen: number; commitIndex: number;
+}) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 7, height: "100%" }}>
+      <div>
+        <div style={{ fontSize: 12, letterSpacing: ".05em", color: roleColor }}>{plainState}</div>
+        <div style={{ fontSize: 8.5, color: "#5d6673", marginTop: 1 }}>{techState}</div>
+      </div>
+      <div>
+        <div style={{ fontSize: 10, letterSpacing: 0.5, color: tickColor }}>{ticks}</div>
+        <div style={{ fontSize: 8.5, color: "#68727f", marginTop: 2 }}>
+          {commitIndex} of {logLen} changes saved for good
+        </div>
+        <div style={{ fontSize: 8, color: "#454e59" }}>
+          log {logLen} · commit {commitIndex}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function LogScreen({ narration }: { narration: string[] }) {
+  if (narration.length === 0) {
+    return <div style={{ fontSize: 9, color: "#5d6673" }}>Nothing has happened to this computer yet.</div>;
+  }
+  return (
+    <div style={{ height: "100%", overflow: "auto", display: "flex", flexDirection: "column", gap: 4 }}>
+      {narration
+        .slice()
+        .reverse()
+        .map((line, i) => {
+          const t = translate(line);
+          return (
+            <div key={i}>
+              <div style={{ fontSize: 8.5, lineHeight: 1.3, color: "#98a6b4" }}>{t.plain}</div>
+              <div style={{ fontSize: 7.5, lineHeight: 1.3, color: "#4d5765" }}>{t.raw}</div>
+            </div>
+          );
+        })}
+    </div>
+  );
+}
+
+function ActionScreen({
+  activeScenario,
+  onAction,
+}: {
+  activeScenario: ScenarioId;
+  onAction: (a: DeviceAction) => void;
+}) {
+  return (
+    <div style={{ height: "100%", overflow: "auto", display: "flex", flexDirection: "column", gap: 2 }}>
+      {DEVICE_ACTIONS.map((a) => {
+        const live = a.scenario === activeScenario;
+        return (
+          <button
+            key={a.key}
+            title={a.detail}
+            onClick={(e) => {
+              e.stopPropagation();
+              onAction(a);
+            }}
+            style={{
+              display: "block", width: "100%", textAlign: "left", cursor: "pointer",
+              padding: "3px 5px", font: "inherit", fontSize: 8.5, lineHeight: 1.25,
+              color: live ? "#dfe8f2" : "#93a0ad",
+              background: live ? "#243447" : "#161c23",
+              border: `1px solid ${live ? "#3d5a7a" : "#242c35"}`,
+            }}
+          >
+            {a.label}
+          </button>
+        );
+      })}
+      <div style={{ fontSize: 7, lineHeight: 1.3, color: "#4d5765", paddingTop: 2 }}>
+        These jump to a recorded run of that event.
       </div>
     </div>
   );
@@ -353,17 +379,116 @@ function ScreenTab({ label, active, onSelect }: { label: string; active: boolean
         onSelect();
       }}
       style={{
-        padding: "2px 5px",
-        cursor: "pointer",
-        font: "inherit",
-        fontSize: 8.5,
-        letterSpacing: ".08em",
-        border: `1px solid ${active ? "#4c5865" : "#252c34"}`,
-        background: active ? "#2f3944" : "transparent",
-        color: active ? "#dfe5ec" : "#6b7581",
+        padding: "2px 4px", cursor: "pointer", font: "inherit", fontSize: 7.5, letterSpacing: ".06em",
+        border: `1px solid ${active ? "#49576a" : "#20272f"}`,
+        background: active ? "#2c3846" : "transparent",
+        color: active ? "#dde5ee" : "#68727f",
       }}
     >
       {label}
     </button>
+  );
+}
+
+/* ---- Chassis ------------------------------------------------------ */
+
+const CASE_FACE = "linear-gradient(160deg, var(--case-lit), var(--case) 50%, var(--case-dim))";
+const CASE_EDGE = "1px solid var(--case-edge)";
+const CASE_SHADOW = "0 6px 12px rgba(60,55,40,.24), 0 1px 2px rgba(60,55,40,.28)";
+
+function Tower({ on, pwrColor, ledAnim }: { on: boolean; pwrColor: string; ledAnim: string }) {
+  return (
+    <div
+      style={{
+        width: 54, height: 138, borderRadius: 3, boxSizing: "border-box", padding: "7px 6px",
+        display: "flex", flexDirection: "column", gap: 5,
+        background: CASE_FACE, border: CASE_EDGE, borderTopColor: "#f2edde", borderLeftColor: "#eee9d9",
+        boxShadow: CASE_SHADOW,
+      }}
+    >
+      {/* Optical drive and floppy slot. */}
+      <div style={{ height: 9, background: "var(--case-dim)", border: "1px solid var(--case-shadow)", display: "flex", alignItems: "center", justifyContent: "flex-end", paddingRight: 3 }}>
+        <span style={{ width: 5, height: 2, background: "var(--case-shadow)" }} />
+      </div>
+      <div style={{ height: 6, background: "var(--case-dim)", border: "1px solid var(--case-shadow)" }} />
+      <div style={{ flex: 1 }} />
+      {/* Vent slots. */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+        {[0, 1, 2, 3].map((i) => (
+          <span key={i} style={{ height: 2, background: "var(--case-vent)", borderTop: "1px solid var(--case-shadow)" }} />
+        ))}
+      </div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <span
+          title="power"
+          style={{
+            width: 17, height: 17, borderRadius: "50%",
+            background: "radial-gradient(circle at 35% 30%, var(--case-lit), var(--case-dim))",
+            border: "1px solid var(--case-shadow)",
+            display: "grid", placeItems: "center", fontSize: 8, color: "#7d7563",
+          }}
+        >
+          &#9211;
+        </span>
+        <span
+          style={{
+            width: 5, height: 5, borderRadius: "50%", background: pwrColor,
+            border: "1px solid rgba(0,0,0,.35)", animation: ledAnim,
+            opacity: on ? 1 : 0.5,
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function Stand() {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+      <div style={{ width: 62, height: 13, background: "linear-gradient(180deg, var(--case-dim), var(--case-edge))", borderLeft: CASE_EDGE, borderRight: CASE_EDGE }} />
+      <div style={{ width: 108, height: 8, borderRadius: "2px 2px 4px 4px", background: "linear-gradient(180deg, var(--case), var(--case-edge))", border: CASE_EDGE, boxShadow: "0 4px 9px rgba(60,55,40,.26)" }} />
+    </div>
+  );
+}
+
+function LaptopBase({ pwrColor, ledAnim }: { pwrColor: string; ledAnim: string }) {
+  return (
+    <div
+      style={{
+        position: "relative", width: 256, marginLeft: -10, height: 17, borderRadius: "2px 2px 6px 6px",
+        background: "linear-gradient(180deg, var(--case-lit), var(--case-dim))",
+        border: CASE_EDGE, borderTopColor: "#f2edde",
+        boxShadow: CASE_SHADOW, display: "flex", alignItems: "center",
+        justifyContent: "space-between", padding: "0 10px", boxSizing: "border-box",
+      }}
+    >
+      <div style={{ display: "flex", gap: 3 }}>
+        {[0, 1, 2].map((i) => (
+          <span key={i} style={{ width: 34, height: 5, background: "var(--case-vent)", border: "1px solid var(--case-shadow)" }} />
+        ))}
+      </div>
+      <span style={{ width: 5, height: 5, borderRadius: "50%", background: pwrColor, border: "1px solid rgba(0,0,0,.35)", animation: ledAnim }} />
+    </div>
+  );
+}
+
+function Keyboard() {
+  return (
+    <div
+      style={{
+        margin: "9px 0 0", width: 232, height: 24, borderRadius: "2px 2px 4px 4px",
+        background: CASE_FACE, border: CASE_EDGE, borderTopColor: "#f2edde",
+        boxShadow: CASE_SHADOW, display: "flex", flexDirection: "column",
+        justifyContent: "center", gap: 3, padding: "0 9px", boxSizing: "border-box",
+      }}
+    >
+      {[0, 1].map((row) => (
+        <div key={row} style={{ display: "flex", gap: 2 }}>
+          {Array.from({ length: 14 }, (_, i) => (
+            <span key={i} style={{ flex: 1, height: 4, background: "var(--case-dim)", border: "1px solid var(--case-shadow)" }} />
+          ))}
+        </div>
+      ))}
+    </div>
   );
 }

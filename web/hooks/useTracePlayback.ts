@@ -4,6 +4,19 @@ import { useCallback, useEffect, useState } from "react";
 import { loadTrace, type ScenarioId } from "@/lib/loadTrace";
 import type { Trace, TraceTick } from "@/lib/trace";
 
+// What the caller wants shown: a scenario, and optionally where to land
+// in it once it has loaded. `seek` resolves against the loaded trace
+// rather than being a plain index, because a device action means "the
+// frame where the power gets cut", and only the trace knows which frame
+// that is. `nonce` lets the same request be re-issued (clicking the same
+// action twice should replay it, not do nothing).
+export interface PlaybackRequest {
+  scenario: ScenarioId;
+  seek?: (t: Trace) => number;
+  autoplay?: boolean;
+  nonce?: number;
+}
+
 export interface TracePlayback {
   trace: Trace | null;
   loading: boolean;
@@ -26,10 +39,11 @@ export interface TracePlayback {
 
 // useTracePlayback drives a pre-recorded Trace via a scrubber: current
 // index, play/pause, speed, and derived per-tick data. There is no live
-// simulation here — every tick was already computed by internal/sim and
+// simulation here. Every tick was already computed by internal/sim and
 // exported as JSON; this hook only decides which recorded tick is
 // currently in view and how fast to advance through them.
-export function useTracePlayback(scenario: ScenarioId): TracePlayback {
+export function useTracePlayback(request: PlaybackRequest): TracePlayback {
+  const { scenario, seek, autoplay, nonce } = request;
   const [trace, setTrace] = useState<Trace | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -37,6 +51,11 @@ export function useTracePlayback(scenario: ScenarioId): TracePlayback {
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(2); // ticks/sec
 
+  // `seek` can sit in the dependency array directly because every seek
+  // function comes from the module-level DEVICE_ACTIONS array, so its
+  // identity is stable across renders. `nonce` is what makes re-issuing
+  // the same request re-run this: clicking one action twice should
+  // replay it rather than do nothing.
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
@@ -47,7 +66,11 @@ export function useTracePlayback(scenario: ScenarioId): TracePlayback {
 
     loadTrace(scenario)
       .then((t) => {
-        if (!cancelled) setTrace(t);
+        if (cancelled) return;
+        setTrace(t);
+        const target = seek?.(t) ?? 0;
+        setIndexState(Math.max(0, Math.min(t.ticks.length - 1, target)));
+        if (autoplay) setPlaying(true);
       })
       .catch((err) => {
         if (!cancelled) setError(String(err));
@@ -59,7 +82,7 @@ export function useTracePlayback(scenario: ScenarioId): TracePlayback {
     return () => {
       cancelled = true;
     };
-  }, [scenario]);
+  }, [scenario, seek, autoplay, nonce]);
 
   const maxIndex = trace ? trace.ticks.length - 1 : 0;
 

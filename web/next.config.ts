@@ -6,6 +6,10 @@ const nextConfig: NextConfig = {
   // decision to replay recorded internal/sim traces rather than run a live
   // backend.
   output: "export",
+
+  // No floating dev-tools badge over the workspace. It sits bottom-left,
+  // exactly on top of the simulation controls.
+  devIndicators: false,
 };
 
 export default nextConfig;

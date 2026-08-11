@@ -3,11 +3,13 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import type { TraceTick } from "@/lib/trace";
 import NodeCard, { type NodeKind } from "./NodeCard";
+import type { ScenarioId } from "@/lib/loadTrace";
+import type { DeviceAction } from "@/lib/scenarioActions";
 
 const W = 1400;
 const H = 800;
 
-// The ring occupies well less than the authored space — the devices span
+// The ring occupies well less than the authored space. The devices span
 // roughly 1180×745 around the same centre. Fitting to the content box
 // rather than to W×H is the difference between the cluster filling the
 // workspace and floating in the middle of it.
@@ -33,9 +35,11 @@ const RING: [number, number][] = [
 interface Props {
   tick: TraceTick;
   narrationByNode: Map<number, string[]>;
+  activeScenario: ScenarioId;
+  onAction: (a: DeviceAction) => void;
 }
 
-// ClusterView lays nodes out in a ring — makes majority/quorum instantly
+// ClusterView lays nodes out in a ring, which makes majority/quorum instantly
 // legible, since you can see at a glance whether a leader has enough
 // reachable neighbors around it.
 //
@@ -47,13 +51,13 @@ interface Props {
 // the device screens for attention.
 //
 // Known simplification: link "connectivity" here is only "both endpoints
-// alive" — the trace doesn't yet record which partition group each node
+// alive". The trace does not yet record which partition group each node
 // was in at each tick, so a partition (nodes alive but unreachable from
 // each other) doesn't visually cut a link the way a Kill does. Adding that
 // would mean recording group membership per tick in internal/sim's
 // TraceRecorder, deliberately deferred alongside packet-in-flight
 // animation.
-export default function ClusterView({ tick, narrationByNode }: Props) {
+export default function ClusterView({ tick, narrationByNode, activeScenario, onAction }: Props) {
   const [focus, setFocus] = useState<number | null>(null);
   const hostRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0.6);
@@ -77,7 +81,7 @@ export default function ClusterView({ tick, narrationByNode }: Props) {
 
   // Selecting a device zooms it, which would push a node on the rim of
   // the ring off the edge of the workspace. Pull the whole layout partway
-  // toward that device to compensate — partway rather than all the way so
+  // toward that device to compensate, partway rather than all the way so
   // the ring stays recognisable and you don't lose your bearings.
   const [panX, panY] = focus === null ? [0, 0] : [(W / 2 - POS[focus][0]) * 0.6, (H / 2 - POS[focus][1]) * 0.6];
 
@@ -157,6 +161,8 @@ export default function ClusterView({ tick, narrationByNode }: Props) {
               node={n}
               kind={KINDS[i]}
               narration={narrationByNode.get(n.id) ?? []}
+              activeScenario={activeScenario}
+              onAction={onAction}
               focused={focus === i}
               dimmed={focus !== null && focus !== i}
               onFocus={() => setFocus(i)}
@@ -166,7 +172,7 @@ export default function ClusterView({ tick, narrationByNode }: Props) {
 
         {/* Port LEDs ride above the devices rather than below them. The
             chassis are different widths, so any fixed offset along the
-            link that clears a laptop is still swallowed by a tower — and
+            link that clears a laptop is still swallowed by a tower, and
             a port light sitting on the edge of the box is what it looks
             like on real hardware anyway. */}
         <svg

@@ -1,6 +1,6 @@
 // Mirrors internal/sim/trace.go's JSON shape exactly. Role stays a plain
-// string (matching Go's Role.String() output) rather than a numeric enum —
-// same reasoning as the Go side: keep this self-contained, no shared
+// string (matching Go's Role.String() output) rather than a numeric enum.
+// Same reasoning as the Go side: keep this self-contained, no shared
 // marshaling contract to maintain between the two languages beyond "it's
 // one of these four strings."
 export type Role = "Follower" | "Candidate" | "Leader" | "Unknown";

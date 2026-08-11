@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 import { useTracePlayback, type PlaybackRequest } from "@/hooks/useTracePlayback";
+import { useLiveCluster } from "@/hooks/useLiveCluster";
 import ClusterView from "@/components/ClusterView/ClusterView";
 import SimulationControl from "@/components/Timeline/SimulationControl";
 import EventLog from "@/components/EventLog";
@@ -10,47 +11,66 @@ import { narrationByNode } from "@/lib/narrationByNode";
 import { SCENARIOS } from "@/lib/loadTrace";
 import type { DeviceAction } from "@/lib/scenarioActions";
 
+const LIVE_SERVER_URL = process.env.NEXT_PUBLIC_LIVE_SERVER_URL ?? "http://localhost:8080";
+
+type Mode = "replay" | "live";
+
 // The shell is a fixed-chrome desktop application layout rather than a
 // scrolling web page: title bar, workspace, docked panel, controls,
 // status bar. That is the point of the visual language. This is a
 // network simulator you operate, not a dashboard you read.
 //
-// There is deliberately no scenario picker up here any more. Choosing
-// what happens next is done by clicking a computer and using its DO
-// screen, so the gesture matches the thing: you act on a machine.
+// Two modes share the same workspace. Replay plays back a recorded
+// internal/sim run (the original design); Live watches an actual running
+// chaos-server process in real time. They deliberately share every
+// visual component unchanged — ClusterView and NodeCard have no idea
+// which one is feeding them, because both ultimately hand them the same
+// TraceTick shape (see lib/liveReport.ts for the live side of that).
+// Live mode is read-only for now: clicking a DO-screen action while
+// live falls back to Replay and runs that recording, exactly as it
+// already did, rather than doing nothing or breaking.
 export default function Home() {
+  const [mode, setMode] = useState<Mode>("replay");
   const [request, setRequest] = useState<PlaybackRequest>({ scenario: "election" });
   const [helpOpen, setHelpOpen] = useState(false);
-  const playback = useTracePlayback(request);
-  const { trace, loading, error, tick, narrationSoFar, index, maxIndex, playing } = playback;
 
-  const byNode = useMemo(
-    () => narrationByNode(narrationSoFar, trace?.meta.nodeCount ?? 0),
-    [narrationSoFar, trace],
-  );
+  const playback = useTracePlayback(request);
+  const live = useLiveCluster(mode === "live" ? LIVE_SERVER_URL : null);
+
+  const isLive = mode === "live";
+  const tick = isLive ? live.tick : playback.tick;
+  const narrationSoFar = isLive ? live.narrationSoFar : playback.narrationSoFar;
+  const loading = isLive ? !live.connected && !live.error : playback.loading;
+  const error = isLive ? live.error : playback.error;
+
+  const nodeCount = tick?.nodes.length ?? 0;
+  const byNode = useMemo(() => narrationByNode(narrationSoFar, nodeCount), [narrationSoFar, nodeCount]);
 
   const runAction = useCallback((a: DeviceAction) => {
+    setMode("replay");
     setRequest({ scenario: a.scenario, seek: a.seek, autoplay: true, nonce: Date.now() });
   }, []);
 
   const meta = SCENARIOS.find((s) => s.id === request.scenario);
   const leader = tick?.nodes.find((n) => n.alive && n.role === "Leader") ?? null;
   const term = tick ? Math.max(...tick.nodes.map((n) => n.currentTerm)) : 0;
-  const total = trace?.meta.nodeCount ?? 0;
   const alive = tick?.nodes.filter((n) => n.alive).length ?? 0;
 
   return (
     <div className="shell">
       <div className="titlebar">
         <span style={{ fontSize: 11.5, fontWeight: 600 }}>Chaos Raft Cluster Visualizer</span>
-        <span style={{ opacity: 0.55, fontSize: 10.5 }}>&middot; {meta?.label}</span>
+        <span style={{ opacity: 0.55, fontSize: 10.5 }}>
+          &middot; {isLive ? "Live" : meta?.label}
+        </span>
         <span style={{ flex: 1 }} />
+        <ModeSwitch mode={mode} onChange={setMode} />
         <button
           onClick={() => setHelpOpen(true)}
           style={{
             cursor: "pointer", color: "#fff", background: "rgba(255,255,255,.14)",
             border: "1px solid rgba(255,255,255,.4)", borderRadius: 2,
-            font: "inherit", fontSize: 10.5, padding: "2px 8px",
+            font: "inherit", fontSize: 10.5, padding: "2px 8px", marginLeft: 8,
           }}
         >
           How this works
@@ -65,13 +85,22 @@ export default function Home() {
             <span style={{ fontWeight: 400, opacity: 0.85 }}>click a computer to inspect or control it</span>
           </div>
           <div className="panel-body" style={{ padding: 3 }}>
-            {loading && <Notice>Loading the recording…</Notice>}
-            {error && <Notice tone="error">{error}</Notice>}
+            {loading && <Notice>{isLive ? "Connecting to chaos-server…" : "Loading the recording…"}</Notice>}
+            {error && (
+              <Notice tone="error">
+                {error}
+                {isLive && (
+                  <>
+                    {" "}Start it with <code style={{ fontFamily: "var(--mono-font)" }}>go run ./cmd/chaos-server</code>, then this reconnects on its own.
+                  </>
+                )}
+              </Notice>
+            )}
             {tick && (
               <ClusterView
                 tick={tick}
                 narrationByNode={byNode}
-                activeScenario={request.scenario}
+                activeScenario={isLive ? "election" : request.scenario}
                 onAction={runAction}
               />
             )}
@@ -90,27 +119,76 @@ export default function Home() {
         </div>
       </div>
 
-      <SimulationControl playback={playback} />
+      {isLive ? (
+        <LiveStatusStrip connected={live.connected} url={LIVE_SERVER_URL} />
+      ) : (
+        <SimulationControl playback={playback} />
+      )}
 
       <div className="statusbar">
         <div className="status-cell" style={{ minWidth: 92 }}>
-          <Led tone={error ? "down" : playing ? "up" : "idle"} />
-          {error ? "Error" : loading ? "Loading" : playing ? "Running" : "Paused"}
+          <Led tone={error ? "down" : isLive ? (live.connected ? "up" : "idle") : playback.playing ? "up" : "idle"} />
+          {isLive
+            ? live.connected ? "Live" : "Disconnected"
+            : error ? "Error" : loading ? "Loading" : playback.playing ? "Running" : "Paused"}
         </div>
         <div className="status-cell">
-          Computers up: {alive} of {total}
+          Computers up: {alive} of {nodeCount || (isLive ? 5 : 0)}
         </div>
         <div className="status-cell">In charge: {leader ? `PC${leader.id}` : "nobody"}</div>
         <div className="status-cell" style={{ fontFamily: "var(--mono-font)" }}>
           term {term}
         </div>
         <div className="status-cell" style={{ flex: 1 }} />
-        <div className="status-cell" style={{ fontFamily: "var(--mono-font)" }}>
-          tick {tick?.at ?? 0} · frame {index + 1}/{maxIndex + 1}
-        </div>
+        {!isLive && (
+          <div className="status-cell" style={{ fontFamily: "var(--mono-font)" }}>
+            tick {tick?.at ?? 0} · frame {playback.index + 1}/{playback.maxIndex + 1}
+          </div>
+        )}
       </div>
 
       <HowItWorks open={helpOpen} onClose={() => setHelpOpen(false)} />
+    </div>
+  );
+}
+
+function ModeSwitch({ mode, onChange }: { mode: Mode; onChange: (m: Mode) => void }) {
+  const btn = (m: Mode, label: string) => (
+    <button
+      onClick={() => onChange(m)}
+      aria-pressed={mode === m}
+      style={{
+        cursor: "pointer", font: "inherit", fontSize: 10.5, padding: "2px 9px",
+        color: mode === m ? "var(--accent)" : "#fff",
+        background: mode === m ? "#fff" : "rgba(255,255,255,.14)",
+        border: "1px solid rgba(255,255,255,.4)",
+        borderRadius: m === "replay" ? "2px 0 0 2px" : "0 2px 2px 0",
+        marginLeft: m === "live" ? -1 : 0,
+      }}
+    >
+      {label}
+    </button>
+  );
+  return (
+    <span>
+      {btn("replay", "Replay")}
+      {btn("live", "Live")}
+    </span>
+  );
+}
+
+function LiveStatusStrip({ connected, url }: { connected: boolean; url: string }) {
+  return (
+    <div className="toolbar" style={{ minHeight: 34, alignItems: "center", gap: 8, padding: "0 10px" }}>
+      <Led tone={connected ? "up" : "idle"} />
+      <span style={{ fontSize: 11.5, color: "var(--ink)" }}>
+        {connected ? "Watching a live cluster" : "Waiting for a live cluster"}
+      </span>
+      <span style={{ fontSize: 10.5, color: "var(--ink-faint)", fontFamily: "var(--mono-font)" }}>{url}</span>
+      <span style={{ flex: 1 }} />
+      <span style={{ fontSize: 10.5, color: "var(--ink-faint)" }}>
+        Read-only for now — this shows the real thing running, controls are next.
+      </span>
     </div>
   );
 }

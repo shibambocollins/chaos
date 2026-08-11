@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { TraceTick } from "@/lib/trace";
 import NodeCard, { type NodeKind } from "./NodeCard";
 import type { ScenarioId } from "@/lib/loadTrace";
@@ -55,8 +55,7 @@ interface Props {
 // was in at each tick, so a partition (nodes alive but unreachable from
 // each other) doesn't visually cut a link the way a Kill does. Adding that
 // would mean recording group membership per tick in internal/sim's
-// TraceRecorder, deliberately deferred alongside packet-in-flight
-// animation.
+// TraceRecorder.
 export default function ClusterView({ tick, narrationByNode, activeScenario, onAction }: Props) {
   const [focus, setFocus] = useState<number | null>(null);
   const hostRef = useRef<HTMLDivElement>(null);
@@ -78,6 +77,38 @@ export default function ClusterView({ tick, narrationByNode, activeScenario, onA
 
   const nodes = tick.nodes;
   const leaderIdx = nodes.findIndex((n) => n.alive && n.role === "Leader");
+
+  // Traffic pulses: small dots travelling the full mesh, not just the
+  // ring, because that is the real Raft broadcast shape, a leader talks
+  // to every follower directly, a candidate asks every peer directly.
+  // Derived entirely from the role each node already has this tick, no
+  // message-level data is recorded, so this is an honest approximation
+  // ("something is being sent this direction") rather than a replay of
+  // literal packets. Keyed on tick.at so every step restarts the motion,
+  // which reads as "traffic happening again this moment" rather than one
+  // continuous loop that has nothing to do with where you are.
+  const pulses = useMemo(() => {
+    const out: { key: string; x1: number; y1: number; x2: number; y2: number; color: string; duration: number }[] = [];
+    const push = (from: number, to: number, color: string) => {
+      const [x1, y1] = POS[from];
+      const [x2, y2] = POS[to];
+      const dist = Math.hypot(x2 - x1, y2 - y1);
+      out.push({ key: `${from}-${to}`, x1, y1, x2, y2, color, duration: Math.min(1.6, Math.max(0.55, dist / 620)) });
+    };
+    nodes.forEach((n, i) => {
+      if (!n.alive) return;
+      if (i === leaderIdx) {
+        nodes.forEach((peer, j) => {
+          if (j !== i && peer.alive) push(i, j, "#3f9e5c");
+        });
+      } else if (n.role === "Candidate") {
+        nodes.forEach((peer, j) => {
+          if (j !== i && peer.alive) push(i, j, "#c98f22");
+        });
+      }
+    });
+    return out;
+  }, [nodes, leaderIdx]);
 
   // Selecting a device zooms it, which would push a node on the rim of
   // the ring off the edge of the workspace. Pull the whole layout partway
@@ -144,6 +175,26 @@ export default function ClusterView({ tick, narrationByNode, activeScenario, onA
               );
             }),
           )}
+        </svg>
+
+        {/* Message pulses ride between the mesh lines (z=1) and the
+            devices (z=2) so they read as travelling on the wire, not
+            floating over the machines. */}
+        <svg
+          viewBox={`0 0 ${W} ${H}`}
+          width={W}
+          height={H}
+          style={{ position: "absolute", left: 0, top: 0, zIndex: 1, pointerEvents: "none" }}
+        >
+          {pulses.map((p) => (
+            <circle key={`${p.key}-${tick.at}`} r={5} fill={p.color} stroke="#fff" strokeWidth={0.9}>
+              <animateMotion
+                dur={`${p.duration}s`}
+                repeatCount="indefinite"
+                path={`M${p.x1},${p.y1} L${p.x2},${p.y2}`}
+              />
+            </circle>
+          ))}
         </svg>
 
         {nodes.map((n, i) => (
@@ -246,6 +297,8 @@ function Legend() {
         }
         label="link down"
       />
+      <Row swatch={<Dot color="#3f9e5c" />} label="heartbeat in flight" />
+      <Row swatch={<Dot color="#c98f22" />} label="vote request in flight" />
     </div>
   );
 }

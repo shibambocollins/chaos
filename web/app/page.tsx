@@ -5,8 +5,8 @@ import { useTracePlayback, type PlaybackRequest } from "@/hooks/useTracePlayback
 import ClusterView from "@/components/ClusterView/ClusterView";
 import SimulationControl from "@/components/Timeline/SimulationControl";
 import EventLog from "@/components/EventLog";
+import HowItWorks from "@/components/HowItWorks";
 import { narrationByNode } from "@/lib/narrationByNode";
-import { describeState } from "@/lib/plainEnglish";
 import { SCENARIOS } from "@/lib/loadTrace";
 import type { DeviceAction } from "@/lib/scenarioActions";
 
@@ -20,6 +20,7 @@ import type { DeviceAction } from "@/lib/scenarioActions";
 // screen, so the gesture matches the thing: you act on a machine.
 export default function Home() {
   const [request, setRequest] = useState<PlaybackRequest>({ scenario: "election" });
+  const [helpOpen, setHelpOpen] = useState(false);
   const playback = useTracePlayback(request);
   const { trace, loading, error, tick, narrationSoFar, index, maxIndex, playing } = playback;
 
@@ -42,28 +43,18 @@ export default function Home() {
     <div className="shell">
       <div className="titlebar">
         <span style={{ fontSize: 11.5, fontWeight: 600 }}>Chaos Raft Cluster Visualizer</span>
+        <span style={{ opacity: 0.55, fontSize: 10.5 }}>&middot; {meta?.label}</span>
         <span style={{ flex: 1 }} />
-        <span style={{ opacity: 0.62, fontSize: 10.5 }}>replaying a recorded simulation</span>
-      </div>
-
-      {/* Briefing strip: what this recording is, in one sentence, before
-          any Raft vocabulary shows up anywhere else on screen. */}
-      <div className="toolbar" style={{ minHeight: 0, alignItems: "flex-start", gap: 14, padding: "7px 10px" }}>
-        <div style={{ minWidth: 0, flex: 1 }}>
-          <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-            <span style={{ fontSize: 13, fontWeight: 600 }}>{meta?.plain}</span>
-            <span style={{ fontSize: 10.5, color: "var(--ink-faint)", fontFamily: "var(--mono-font)" }}>
-              {meta?.label} · traces/{request.scenario}.json
-            </span>
-          </div>
-          <div style={{ fontSize: 11.5, color: "var(--ink-muted)", marginTop: 2, maxWidth: 900 }}>
-            {meta?.blurb}
-          </div>
-        </div>
-        <div className="sunken" style={{ flex: "none", padding: "5px 9px", fontSize: 11, color: "var(--ink-muted)", maxWidth: 250 }}>
-          <strong style={{ color: "var(--ink)" }}>Try something:</strong> click any computer, open its{" "}
-          <strong style={{ color: "var(--ink)" }}>DO</strong> screen, and pick what should happen to the cluster.
-        </div>
+        <button
+          onClick={() => setHelpOpen(true)}
+          style={{
+            cursor: "pointer", color: "#fff", background: "rgba(255,255,255,.14)",
+            border: "1px solid rgba(255,255,255,.4)", borderRadius: 2,
+            font: "inherit", fontSize: 10.5, padding: "2px 8px",
+          }}
+        >
+          How this works
+        </button>
       </div>
 
       <div className="workarea">
@@ -89,7 +80,7 @@ export default function Home() {
 
         <div className="panel">
           <div className="panel-title">
-            <span>What has happened</span>
+            <span>Logs</span>
             <span style={{ flex: 1 }} />
             <span style={{ fontWeight: 400, opacity: 0.85 }}>{narrationSoFar.length} events</span>
           </div>
@@ -97,20 +88,6 @@ export default function Home() {
             <EventLog lines={narrationSoFar} />
           </div>
         </div>
-      </div>
-
-      {/* Right now, in one sentence. Describes the state rather than the
-          last event, because someone stepping through the timeline wants
-          to know where they are, not what just scrolled past. */}
-      <div
-        className="raised"
-        style={{ display: "flex", alignItems: "center", gap: 9, padding: "6px 10px", fontSize: 12 }}
-      >
-        <Led tone={error ? "down" : leader ? "up" : "busy"} />
-        <span style={{ fontWeight: 600, flex: "none" }}>Right now:</span>
-        <span style={{ color: "var(--ink-muted)" }}>
-          {tick ? describeState(alive, total, leader?.id ?? null) : "Waiting for the recording to load."}
-        </span>
       </div>
 
       <SimulationControl playback={playback} />
@@ -132,6 +109,8 @@ export default function Home() {
           tick {tick?.at ?? 0} · frame {index + 1}/{maxIndex + 1}
         </div>
       </div>
+
+      <HowItWorks open={helpOpen} onClose={() => setHelpOpen(false)} />
     </div>
   );
 }
@@ -153,9 +132,8 @@ function Notice({ children, tone }: { children: React.ReactNode; tone?: "error" 
   );
 }
 
-function Led({ tone }: { tone: "up" | "down" | "busy" | "idle" }) {
-  const color =
-    tone === "up" ? "var(--up)" : tone === "down" ? "var(--down)" : tone === "busy" ? "var(--busy)" : "#9a958e";
+function Led({ tone }: { tone: "up" | "down" | "idle" }) {
+  const color = tone === "up" ? "var(--up)" : tone === "down" ? "var(--down)" : "#9a958e";
   return (
     <span
       style={{

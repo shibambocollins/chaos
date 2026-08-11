@@ -70,21 +70,3 @@ export const TONE_COLOR: Record<Tone, string> = {
   commit: "var(--accent)",
   info: "#9a958e",
 };
-
-// A one-line plain summary of what the cluster looks like right now,
-// for the caption strip above the workspace. Deliberately describes the
-// state rather than the last event: someone scrubbing the timeline wants
-// to know where they are, not what just scrolled past.
-export function describeState(alive: number, total: number, leaderId: number | null): string {
-  const down = total - alive;
-  const missing = down === 1 ? `1 of the ${total} computers is unreachable` : `${down} of the ${total} computers are unreachable`;
-  if (leaderId === null) {
-    return down > 0
-      ? `Nobody is in charge. ${missing}, so the rest are trying to agree on a new boss.`
-      : `Nobody is in charge yet. The computers are voting to choose one.`;
-  }
-  if (down > 0) {
-    return `Computer ${leaderId} is in charge. ${missing}, but ${alive} out of ${total} is still a majority, so work carries on.`;
-  }
-  return `Computer ${leaderId} is in charge. All ${total} computers agree and are keeping identical copies of the data.`;
-}

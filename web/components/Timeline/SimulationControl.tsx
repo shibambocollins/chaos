@@ -17,8 +17,8 @@ import { translate, TONE_COLOR } from "@/lib/plainEnglish";
 // to the interesting part instead of hunting with a scrub handle.
 export default function SimulationControl({ playback }: { playback: TracePlayback }) {
   const {
-    trace, index, maxIndex, playing, speed,
-    toggle, stepBack, stepForward, setIndex, setSpeed, reset,
+    trace, index, maxIndex, playing,
+    toggle, stepBack, stepForward, setIndex, reset,
   } = playback;
 
   const cells = useMemo(() => {
@@ -49,9 +49,9 @@ export default function SimulationControl({ playback }: { playback: TracePlaybac
           className={`btn${playing ? " on" : ""}`}
           onClick={toggle}
           style={{ minWidth: 72 }}
-          title={playing ? "Stop advancing automatically" : "Advance through the recording automatically"}
+          title={playing ? "Pause automatic playback" : "Run automatically through the recording"}
         >
-          {playing ? "Stop" : "Run"}
+          {playing ? "Pause" : "Run"}
         </button>
         <button className="btn" onClick={stepForward} disabled={index >= maxIndex} title="Advance one moment">
           Step &#9654;
@@ -101,21 +101,9 @@ export default function SimulationControl({ playback }: { playback: TracePlaybac
 
       <span className="sep" />
 
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <span style={{ fontSize: 11, color: "var(--ink-muted)", minWidth: 92, textAlign: "right" }}>
-          Moment {index + 1} of {maxIndex + 1}
-        </span>
-        <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "var(--ink-muted)" }}>
-          Pace
-          <select value={speed} onChange={(e) => setSpeed(Number(e.target.value))}>
-            <option value={0.5}>Very slow</option>
-            <option value={1}>Slow</option>
-            <option value={2}>Normal</option>
-            <option value={4}>Fast</option>
-            <option value={8}>Very fast</option>
-          </select>
-        </label>
-      </div>
+      <span style={{ display: "flex", alignItems: "center", fontSize: 11, color: "var(--ink-muted)", minWidth: 92, textAlign: "right" }}>
+        Moment {index + 1} of {maxIndex + 1}
+      </span>
     </div>
   );
 }

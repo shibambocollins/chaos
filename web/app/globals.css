@@ -1,35 +1,52 @@
+/* Chaos — classic network-workbench chrome.
+ *
+ * Deliberately a single light theme rather than a light/dark pair: the
+ * whole visual conceit is a late-90s/2000s network simulator (Packet
+ * Tracer, Boson, Packet Sniffer), and that generation of tool is light
+ * grey chrome around a white workspace. A dark variant of it isn't a
+ * "dark mode" of the same idea, it's a different idea. The only dark
+ * surfaces here are the device screens, which are dark because they're
+ * CRTs, not because of a theme.
+ */
+
 :root {
-  --background: #eeeeec;
-  --foreground: #16181c;
-}
+  /* Chrome — the application shell. */
+  --chrome: #d8d5d0;
+  --chrome-face: #edeae5;
+  --chrome-sunken: #e2dfd9;
+  --bevel-light: #ffffff;
+  --bevel-dark: #9a958e;
+  --bevel-darker: #77726b;
+  --rule: #b8b3ac;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0b0d10;
-    --foreground: #e9ebef;
-  }
-}
+  /* Workspace — where the cluster is drawn. */
+  --workspace: #fbfbfa;
+  --workspace-grid: #e4e7ea;
+  --workspace-edge: #a8a39c;
 
-html {
-  height: 100%;
-  color-scheme: light dark;
-}
+  /* Ink. */
+  --ink: #1b1b19;
+  --ink-muted: #5c5851;
+  --ink-faint: #837e76;
 
-html,
-body {
-  max-width: 100vw;
-  overflow-x: hidden;
-}
+  /* The one accent: a classic title-bar blue, used for selection too. */
+  --accent: #1d4f88;
+  --accent-lit: #2f6fb5;
+  --accent-pale: #cfe0f2;
 
-body {
-  min-height: 100%;
-  display: flex;
-  flex-direction: column;
-  color: var(--foreground);
-  background: var(--background);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  /* Status. Muted-but-saturated, the way an LED silkscreen reads —
+   * not the neon oklch glows this replaced. */
+  --up: #1c7a35;
+  --up-pale: #d3e8d7;
+  --busy: #a8730a;
+  --busy-pale: #f2e5c8;
+  --down: #a8281d;
+  --down-pale: #f0d5d2;
+
+  --ui-font: "Segoe UI", Tahoma, Verdana, Geneva, sans-serif;
+  --mono-font: Consolas, "Lucida Console", ui-monospace, Menlo, monospace;
+
+  color-scheme: light;
 }
 
 * {
@@ -38,15 +55,321 @@ body {
   margin: 0;
 }
 
+html,
+body {
+  height: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  color: var(--ink);
+  background: var(--chrome);
+  font-family: var(--ui-font);
+  font-size: 12px;
+  -webkit-font-smoothing: antialiased;
+}
+
 a {
   color: inherit;
   text-decoration: none;
 }
 
-/* Ported verbatim from the design prototype (Chaos Cluster -standalone-src-.html) */
+/* ---- Bevels -------------------------------------------------------
+ * Two primitives, used everywhere. `raised` = a button face or panel
+ * sitting above the chrome; `sunken` = a well cut into it. Both are
+ * pure border tricks, no shadows, no blur — that's what makes it read
+ * as period-correct rather than as a soft modern card.
+ */
+
+.raised {
+  background: var(--chrome-face);
+  border: 1px solid var(--bevel-dark);
+  border-top-color: var(--bevel-light);
+  border-left-color: var(--bevel-light);
+}
+
+.sunken {
+  background: var(--chrome-sunken);
+  border: 1px solid var(--bevel-light);
+  border-top-color: var(--bevel-darker);
+  border-left-color: var(--bevel-darker);
+}
+
+/* ---- Panels -------------------------------------------------------- */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--chrome-face);
+  border: 1px solid var(--bevel-dark);
+  border-top-color: var(--bevel-light);
+  border-left-color: var(--bevel-light);
+}
+
+.panel-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  height: 21px;
+  padding: 0 6px;
+  background: linear-gradient(180deg, var(--accent-lit), var(--accent));
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  border-bottom: 1px solid var(--bevel-darker);
+}
+
+.panel-title.inactive {
+  background: linear-gradient(180deg, #b9b5ae, #a29d96);
+  color: #f4f2ef;
+}
+
+.panel-body {
+  flex: 1;
+  min-height: 0;
+  padding: 6px;
+}
+
+/* ---- Controls ------------------------------------------------------ */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 8px;
+  font: inherit;
+  font-size: 11px;
+  color: var(--ink);
+  cursor: pointer;
+  background: linear-gradient(180deg, #fbfaf8, #ddd9d3);
+  border: 1px solid var(--bevel-dark);
+  border-top-color: var(--bevel-light);
+  border-left-color: var(--bevel-light);
+}
+
+.btn:hover:not(:disabled) {
+  background: linear-gradient(180deg, #ffffff, #e6f0fa);
+  border-color: var(--accent-lit);
+}
+
+.btn:active:not(:disabled) {
+  background: var(--chrome-sunken);
+  border-color: var(--bevel-darker);
+  border-top-color: var(--bevel-darker);
+  border-left-color: var(--bevel-darker);
+  padding-top: 1px;
+}
+
+.btn:disabled {
+  color: #a09b94;
+  cursor: default;
+  background: var(--chrome-face);
+  border-color: var(--bevel-dark);
+}
+
+.btn.on {
+  color: #fff;
+  background: linear-gradient(180deg, var(--accent-lit), var(--accent));
+  border-color: var(--bevel-darker);
+  border-top-color: var(--accent);
+  border-left-color: var(--accent);
+}
+
+/* Device-palette buttons: taller, icon over label, latched when active —
+ * the bottom-left device tray in Packet Tracer. */
+.tool {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  width: 62px;
+  height: 50px;
+  padding: 4px 2px 3px;
+  font: inherit;
+  font-size: 9.5px;
+  color: var(--ink-muted);
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid transparent;
+}
+
+.tool:hover {
+  color: var(--ink);
+  background: var(--accent-pale);
+  border-color: var(--accent-lit);
+}
+
+.tool.on {
+  color: var(--ink);
+  background: var(--chrome-sunken);
+  border: 1px solid var(--bevel-light);
+  border-top-color: var(--bevel-darker);
+  border-left-color: var(--bevel-darker);
+}
+
+.tool svg {
+  display: block;
+}
+
+.menu-item {
+  padding: 3px 9px 4px;
+  font-size: 12px;
+  color: var(--ink);
+  cursor: default;
+  border: 1px solid transparent;
+}
+
+.menu-item:hover {
+  background: var(--accent-pale);
+  border-color: var(--accent-lit);
+}
+
+.sep {
+  width: 1px;
+  align-self: stretch;
+  margin: 3px 4px;
+  background: var(--bevel-dark);
+  border-right: 1px solid var(--bevel-light);
+}
+
+/* Sliders and selects, dragged back toward the era. */
+input[type="range"] {
+  height: 18px;
+  cursor: pointer;
+  accent-color: var(--accent);
+}
+
+select {
+  height: 22px;
+  padding: 0 4px;
+  font: inherit;
+  font-size: 11px;
+  color: var(--ink);
+  background: #fff;
+  border: 1px solid var(--bevel-darker);
+  border-right-color: var(--bevel-dark);
+  border-bottom-color: var(--bevel-dark);
+  border-radius: 0;
+}
+
+/* ---- Application layout --------------------------------------------
+ * A fixed shell: title bar and toolbar pinned top, status bar pinned
+ * bottom, and the work area between them the only part that scrolls.
+ * Period-correct, and it also means the timeline never walks off the
+ * bottom of a long event log.
+ */
+
+.shell {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  height: 100dvh;
+  padding: 3px;
+}
+
+.titlebar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  height: 24px;
+  padding: 0 4px 0 6px;
+  color: #fff;
+  background: linear-gradient(180deg, var(--accent-lit), var(--accent) 55%, #163f6e);
+  border: 1px solid var(--bevel-darker);
+  border-top-color: var(--accent-lit);
+  border-left-color: var(--accent-lit);
+}
+
+.toolbar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+  min-height: 58px;
+  padding: 3px 5px;
+  background: var(--chrome-face);
+  border: 1px solid var(--bevel-dark);
+  border-top-color: var(--bevel-light);
+  border-left-color: var(--bevel-light);
+}
+
+.workarea {
+  display: grid;
+  flex: 1;
+  min-height: 0;
+  grid-template-columns: minmax(0, 1fr) 316px;
+  gap: 3px;
+}
+
+.statusbar {
+  display: flex;
+  flex: none;
+  gap: 3px;
+  align-items: stretch;
+  height: 22px;
+  font-size: 11px;
+  color: var(--ink-muted);
+}
+
+.status-cell {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 7px;
+  white-space: nowrap;
+  background: var(--chrome-face);
+  border: 1px solid var(--bevel-light);
+  border-top-color: var(--bevel-dark);
+  border-left-color: var(--bevel-dark);
+}
+
+@media (max-width: 1080px) {
+  .shell {
+    height: auto;
+    min-height: 100dvh;
+  }
+  .workarea {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ---- Scrollbars ---------------------------------------------------- */
+
+*::-webkit-scrollbar {
+  width: 14px;
+  height: 14px;
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--chrome-sunken);
+}
+
+*::-webkit-scrollbar-thumb {
+  background: linear-gradient(90deg, #f2f0ed, #cfcbc4);
+  border: 1px solid var(--bevel-dark);
+  border-top-color: var(--bevel-light);
+  border-left-color: var(--bevel-light);
+}
+
+/* ---- Device screen animations --------------------------------------
+ * Carried over from the original design prototype. Amplitudes pulled
+ * down: these now read as a CRT with a slightly unstable refresh, not
+ * as a glowing UI element demanding attention.
+ */
 @keyframes chaosAmber {
   0%, 100% { filter: brightness(1) }
-  50% { filter: brightness(1.24) }
+  50% { filter: brightness(1.14) }
 }
 @keyframes chaosDie {
   0% { opacity: 1 } 7% { opacity: .18 } 11% { opacity: 1 } 20% { opacity: .08 }
@@ -57,18 +380,16 @@ a {
   0% { opacity: 0 } 9% { opacity: .95 } 15% { opacity: .06 } 24% { opacity: 1 }
   33% { opacity: .28 } 46% { opacity: 1 } 58% { opacity: .62 } 74% { opacity: 1 } 100% { opacity: 1 }
 }
-@keyframes chaosBreathe {
-  0%, 100% { opacity: .34; transform: scale(1) }
-  50% { opacity: .85; transform: scale(1.04) }
-}
 @keyframes chaosLed {
-  0%, 100% { opacity: .28 }
+  0%, 100% { opacity: .3 }
   50% { opacity: 1 }
 }
 @keyframes chaosSweep {
   0% { transform: translateY(-140%) }
   100% { transform: translateY(430%) }
 }
-@keyframes chaosFade {
-  0% { opacity: 0 } 12% { opacity: 1 } 88% { opacity: 1 } 100% { opacity: 0 }
+/* Marching-ants marquee on the selected device — the period-correct way
+ * to show selection, replacing the breathing neon halo. */
+@keyframes chaosMarquee {
+  to { stroke-dashoffset: -12 }
 }

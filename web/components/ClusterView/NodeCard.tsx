@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { TraceNodeState } from "@/lib/trace";
 import type { ScenarioId } from "@/lib/loadTrace";
 import { DEVICE_ACTIONS, type DeviceAction } from "@/lib/scenarioActions";
+import { LIVE_ACTIONS, type LiveActionKind } from "@/lib/liveActions";
 import { translate } from "@/lib/plainEnglish";
 
 // Two palettes, on purpose. Phosphor colours are for pixels behind
@@ -25,9 +26,11 @@ interface Props {
   narration: string[]; // this node's own narration lines up to the current tick
   focused: boolean;
   dimmed: boolean;
+  mode: "replay" | "live";
   activeScenario: ScenarioId;
   onFocus: () => void;
   onAction: (a: DeviceAction) => void;
+  onLiveAction: (kind: LiveActionKind) => void;
 }
 
 type Transient = "none" | "dying" | "booting";
@@ -48,13 +51,27 @@ export default function NodeCard({
   narration,
   focused,
   dimmed,
+  mode,
   activeScenario,
   onFocus,
   onAction,
+  onLiveAction,
 }: Props) {
   const [tab, setTab] = useState<Tab>("status");
   const prevAlive = useRef(node.alive);
   const [transient, setTransient] = useState<Transient>("none");
+
+  // Resetting tab when this card becomes dimmed (attention moved to a
+  // different device) is React's documented "adjust state when a prop
+  // changes" case, done during render rather than in an effect: without
+  // this, a DO or LOG screen left open would stay open indefinitely in
+  // the background, dimmed but unchanged, so refocusing it later would
+  // show whatever tab it was left on instead of its normal readout.
+  const [prevDimmed, setPrevDimmed] = useState(dimmed);
+  if (dimmed !== prevDimmed) {
+    setPrevDimmed(dimmed);
+    if (dimmed) setTab("status");
+  }
 
   // The trace only records discrete before/after states (a kill jumps
   // straight from alive:true to alive:false in one tick, no in-between
@@ -155,6 +172,7 @@ export default function NodeCard({
 
   return (
     <div
+      data-node-id={node.id}
       onClick={(e) => {
         e.stopPropagation();
         onFocus();
@@ -233,7 +251,15 @@ export default function NodeCard({
                     />
                   )}
                   {tab === "log" && <LogScreen narration={narration} />}
-                  {tab === "act" && <ActionScreen activeScenario={activeScenario} onAction={onAction} />}
+                  {tab === "act" && (
+                    <ActionScreen
+                      node={node}
+                      mode={mode}
+                      activeScenario={activeScenario}
+                      onAction={onAction}
+                      onLiveAction={onLiveAction}
+                    />
+                  )}
                 </div>
               </div>
 
@@ -333,17 +359,63 @@ function LogScreen({ narration }: { narration: string[] }) {
   );
 }
 
+// ActionScreen shows one of two entirely different button lists depending
+// on mode, not the same list with different handlers: a recorded-run
+// jump and a real HTTP request to a live process are different enough
+// gestures that presenting both together, or silently switching what a
+// given button does out from under someone, would be more confusing than
+// two clearly separate screens.
 function ActionScreen({
+  node,
+  mode,
   activeScenario,
   onAction,
+  onLiveAction,
 }: {
+  node: TraceNodeState;
+  mode: "replay" | "live";
   activeScenario: ScenarioId;
   onAction: (a: DeviceAction) => void;
+  onLiveAction: (kind: LiveActionKind) => void;
 }) {
+  if (mode === "live") {
+    return (
+      <div style={{ height: "100%", overflow: "auto", display: "flex", flexDirection: "column", gap: 2 }}>
+        {LIVE_ACTIONS.map((a) => {
+          const canDo = a.enabled(node);
+          return (
+            <button
+              key={a.kind}
+              title={a.detail}
+              disabled={!canDo}
+              onClick={(e) => {
+                e.stopPropagation();
+                onLiveAction(a.kind);
+              }}
+              style={{
+                display: "block", width: "100%", textAlign: "left",
+                cursor: canDo ? "pointer" : "default",
+                padding: "3px 5px", font: "inherit", fontSize: 8.5, lineHeight: 1.25,
+                color: canDo ? "#dfe8f2" : "#586170",
+                background: canDo ? "#243447" : "#171c23",
+                border: `1px solid ${canDo ? "#3d5a7a" : "#232830"}`,
+              }}
+            >
+              {a.label}
+            </button>
+          );
+        })}
+        <div style={{ fontSize: 7, lineHeight: 1.3, color: "#4d5765", paddingTop: 2 }}>
+          These happen for real, right now, on the running cluster.
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ height: "100%", overflow: "auto", display: "flex", flexDirection: "column", gap: 2 }}>
       {DEVICE_ACTIONS.map((a) => {
-        const live = a.scenario === activeScenario;
+        const isActive = a.scenario === activeScenario;
         return (
           <button
             key={a.key}
@@ -355,9 +427,9 @@ function ActionScreen({
             style={{
               display: "block", width: "100%", textAlign: "left", cursor: "pointer",
               padding: "3px 5px", font: "inherit", fontSize: 8.5, lineHeight: 1.25,
-              color: live ? "#dfe8f2" : "#93a0ad",
-              background: live ? "#243447" : "#161c23",
-              border: `1px solid ${live ? "#3d5a7a" : "#242c35"}`,
+              color: isActive ? "#dfe8f2" : "#93a0ad",
+              background: isActive ? "#243447" : "#161c23",
+              border: `1px solid ${isActive ? "#3d5a7a" : "#242c35"}`,
             }}
           >
             {a.label}

@@ -13,7 +13,7 @@ export interface LiveCluster {
 
 // useLiveCluster subscribes to a running chaos-server's SSE feed
 // (GET /stream) and exposes it in exactly the shape the replay path
-// already renders with — ClusterView, NodeCard, and EventLog need zero
+// already renders with. ClusterView, NodeCard, and EventLog need zero
 // changes to show a live cluster instead of a recorded one.
 //
 // baseUrl is nullable on purpose: passing null tears down any open
@@ -22,7 +22,7 @@ export interface LiveCluster {
 // retrying against a server the user may not even have running.
 //
 // Narration accumulates for as long as a connection stays open.
-// Reconnecting after a drop picks up wherever the server currently is —
+// Reconnecting after a drop picks up wherever the server currently is,
 // this is a live view of a real process, not a durable log, so whatever
 // happened while disconnected is genuinely not recoverable here.
 export function useLiveCluster(baseUrl: string | null): LiveCluster {
@@ -34,6 +34,11 @@ export function useLiveCluster(baseUrl: string | null): LiveCluster {
 
   useEffect(() => {
     prevRef.current = null;
+    // Resetting here, not just below in the "no baseUrl" early return, is
+    // intentional: switching from one live server to another (or back to
+    // idle) must drop the previous server's state immediately rather than
+    // showing it stale until the new EventSource's first message arrives.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setTick(null);
     setNarrationSoFar([]);
     setConnected(false);

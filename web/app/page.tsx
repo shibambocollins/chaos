@@ -10,6 +10,8 @@ import HowItWorks from "@/components/HowItWorks";
 import { narrationByNode } from "@/lib/narrationByNode";
 import { SCENARIOS } from "@/lib/loadTrace";
 import type { DeviceAction } from "@/lib/scenarioActions";
+import type { LiveActionKind } from "@/lib/liveActions";
+import { killNode, restartNode, favorNode, isolateNode, healNetwork } from "@/lib/liveClient";
 
 const LIVE_SERVER_URL = process.env.NEXT_PUBLIC_LIVE_SERVER_URL ?? "http://localhost:8080";
 
@@ -23,12 +25,13 @@ type Mode = "replay" | "live";
 // Two modes share the same workspace. Replay plays back a recorded
 // internal/sim run (the original design); Live watches an actual running
 // chaos-server process in real time. They deliberately share every
-// visual component unchanged — ClusterView and NodeCard have no idea
+// visual component unchanged. ClusterView and NodeCard have no idea
 // which one is feeding them, because both ultimately hand them the same
 // TraceTick shape (see lib/liveReport.ts for the live side of that).
-// Live mode is read-only for now: clicking a DO-screen action while
-// live falls back to Replay and runs that recording, exactly as it
-// already did, rather than doing nothing or breaking.
+// NodeCard's DO screen shows a completely different button list per
+// mode instead: Live's buttons send real HTTP requests to a running
+// chaos-server (see lib/liveClient.ts) and the effect shows up over the
+// SSE stream a moment later, rather than jumping to a recorded frame.
 export default function Home() {
   const [mode, setMode] = useState<Mode>("replay");
   const [request, setRequest] = useState<PlaybackRequest>({ scenario: "election" });
@@ -50,6 +53,35 @@ export default function Home() {
     setMode("replay");
     setRequest({ scenario: a.scenario, seek: a.seek, autoplay: true, nonce: Date.now() });
   }, []);
+
+  // The five live actions all resolve to one HTTP call each against the
+  // running chaos-server. isolate needs every configured node id (not
+  // just the currently alive ones) to build a correct partition, which
+  // is why it reads from the current tick rather than taking a fixed
+  // roster, since the cluster size isn't hardcoded into the frontend anywhere
+  // else either.
+  const doLiveAction = useCallback(
+    (nodeId: number, kind: LiveActionKind) => {
+      switch (kind) {
+        case "kill":
+          killNode(LIVE_SERVER_URL, nodeId);
+          break;
+        case "restart":
+          restartNode(LIVE_SERVER_URL, nodeId);
+          break;
+        case "favor":
+          favorNode(LIVE_SERVER_URL, nodeId);
+          break;
+        case "isolate":
+          isolateNode(LIVE_SERVER_URL, nodeId, live.tick?.nodes.map((n) => n.id) ?? []);
+          break;
+        case "heal":
+          healNetwork(LIVE_SERVER_URL);
+          break;
+      }
+    },
+    [live.tick],
+  );
 
   const meta = SCENARIOS.find((s) => s.id === request.scenario);
   const leader = tick?.nodes.find((n) => n.alive && n.role === "Leader") ?? null;
@@ -100,8 +132,10 @@ export default function Home() {
               <ClusterView
                 tick={tick}
                 narrationByNode={byNode}
+                mode={mode}
                 activeScenario={isLive ? "election" : request.scenario}
                 onAction={runAction}
+                onLiveAction={doLiveAction}
               />
             )}
           </div>
@@ -187,7 +221,7 @@ function LiveStatusStrip({ connected, url }: { connected: boolean; url: string }
       <span style={{ fontSize: 10.5, color: "var(--ink-faint)", fontFamily: "var(--mono-font)" }}>{url}</span>
       <span style={{ flex: 1 }} />
       <span style={{ fontSize: 10.5, color: "var(--ink-faint)" }}>
-        Read-only for now — this shows the real thing running, controls are next.
+        Open a computer&apos;s DO screen to act on the real, running cluster.
       </span>
     </div>
   );

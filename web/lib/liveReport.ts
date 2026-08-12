@@ -1,9 +1,9 @@
 import type { Role, TraceNodeState, TraceTick } from "./trace";
 
-// Mirrors internal/sim.Report and NodeSummary's JSON shape exactly — Go's
+// Mirrors internal/sim.Report and NodeSummary's JSON shape exactly, Go's
 // default field-name-as-key encoding, since that type carries no json
 // struct tags (unlike TraceTick/TraceNodeState in internal/sim/trace.go,
-// which do, and which this file deliberately does NOT duplicate — see
+// which do, and which this file deliberately does NOT duplicate, see
 // reportToTick below).
 export interface LiveNodeSummary {
   ID: number;
@@ -45,7 +45,7 @@ function toTraceNode(n: LiveNodeSummary): TraceNodeState {
 // it identical is what lets every component that already reads narration
 // lines (EventLog, NodeCard's LOG tab, lib/plainEnglish's translate) work
 // unchanged whether a line came from a recorded trace or a live snapshot
-// — from their side, "node 5 became Leader (term 2)" doesn't say which.
+// From their side, "node 5 became Leader (term 2)" doesn't say which.
 function diffNarration(prev: TraceNodeState, cur: TraceNodeState): string[] {
   if (prev.alive && !cur.alive) {
     return [`node ${cur.id} killed`];

@@ -5,6 +5,7 @@ import type { TraceTick } from "@/lib/trace";
 import NodeCard, { type NodeKind } from "./NodeCard";
 import type { ScenarioId } from "@/lib/loadTrace";
 import type { DeviceAction } from "@/lib/scenarioActions";
+import type { LiveActionKind } from "@/lib/liveActions";
 
 const W = 1400;
 const H = 800;
@@ -35,8 +36,10 @@ const RING: [number, number][] = [
 interface Props {
   tick: TraceTick;
   narrationByNode: Map<number, string[]>;
+  mode: "replay" | "live";
   activeScenario: ScenarioId;
   onAction: (a: DeviceAction) => void;
+  onLiveAction: (nodeId: number, kind: LiveActionKind) => void;
 }
 
 // ClusterView lays nodes out in a ring, which makes majority/quorum instantly
@@ -56,7 +59,7 @@ interface Props {
 // each other) doesn't visually cut a link the way a Kill does. Adding that
 // would mean recording group membership per tick in internal/sim's
 // TraceRecorder.
-export default function ClusterView({ tick, narrationByNode, activeScenario, onAction }: Props) {
+export default function ClusterView({ tick, narrationByNode, mode, activeScenario, onAction, onLiveAction }: Props) {
   const [focus, setFocus] = useState<number | null>(null);
   const hostRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0.6);
@@ -212,8 +215,10 @@ export default function ClusterView({ tick, narrationByNode, activeScenario, onA
               node={n}
               kind={KINDS[i]}
               narration={narrationByNode.get(n.id) ?? []}
+              mode={mode}
               activeScenario={activeScenario}
               onAction={onAction}
+              onLiveAction={(kind) => onLiveAction(n.id, kind)}
               focused={focus === i}
               dimmed={focus !== null && focus !== i}
               onFocus={() => setFocus(i)}

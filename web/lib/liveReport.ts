@@ -13,6 +13,7 @@ export interface LiveNodeSummary {
   LogLen: number;
   CommitIndex: number;
   AppliedCount: number;
+  Group: number;
 }
 
 export interface LiveViolation {
@@ -36,6 +37,7 @@ function toTraceNode(n: LiveNodeSummary): TraceNodeState {
     currentTerm: n.CurrentTerm,
     logLen: n.LogLen,
     commitIndex: n.CommitIndex,
+    group: n.Group,
   };
 }
 
@@ -60,6 +62,13 @@ function diffNarration(prev: TraceNodeState, cur: TraceNodeState): string[] {
   }
   if (cur.alive && cur.commitIndex > prev.commitIndex) {
     lines.push(`node ${cur.id} committed index ${cur.commitIndex}`);
+  }
+  if (cur.alive && prev.group !== cur.group) {
+    lines.push(
+      cur.group === -1
+        ? `node ${cur.id} reconnected to the rest of the cluster`
+        : `node ${cur.id} lost contact with part of the cluster`,
+    );
   }
   return lines;
 }

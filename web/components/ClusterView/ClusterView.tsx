@@ -53,12 +53,13 @@ interface Props {
 // carries the same information the old glow did without competing with
 // the device screens for attention.
 //
-// Known simplification: link "connectivity" here is only "both endpoints
-// alive". The trace does not yet record which partition group each node
-// was in at each tick, so a partition (nodes alive but unreachable from
-// each other) doesn't visually cut a link the way a Kill does. Adding that
-// would mean recording group membership per tick in internal/sim's
-// TraceRecorder.
+// A link has three states, not two: up, partitioned (both endpoints
+// alive, but on different sides of an active network split, per each
+// node's `group`), and down (an endpoint is dead). Partitioned gets its
+// own colour rather than reusing "down"'s, since the difference is the
+// whole point of a partition scenario: the machines are fine, only the
+// path between them is gone. See internal/sim.Simulator.Group for where
+// the group value comes from.
 export default function ClusterView({ tick, narrationByNode, mode, activeScenario, onAction, onLiveAction }: Props) {
   const [focus, setFocus] = useState<number | null>(null);
   const hostRef = useRef<HTMLDivElement>(null);
@@ -100,13 +101,15 @@ export default function ClusterView({ tick, narrationByNode, mode, activeScenari
     };
     nodes.forEach((n, i) => {
       if (!n.alive) return;
+      // A partitioned-away peer can't actually receive this, so no pulse
+      // draws toward it. Same honesty the link colour below applies.
       if (i === leaderIdx) {
         nodes.forEach((peer, j) => {
-          if (j !== i && peer.alive) push(i, j, "#3f9e5c");
+          if (j !== i && peer.alive && peer.group === n.group) push(i, j, "#3f9e5c");
         });
       } else if (n.role === "Candidate") {
         nodes.forEach((peer, j) => {
-          if (j !== i && peer.alive) push(i, j, "#c98f22");
+          if (j !== i && peer.alive && peer.group === n.group) push(i, j, "#c98f22");
         });
       }
     });
@@ -155,14 +158,16 @@ export default function ClusterView({ tick, narrationByNode, mode, activeScenari
             nodes.slice(ai + 1).map((b, bj) => {
               const bi = ai + 1 + bj;
               const ring = RING.some(([r0, r1]) => (r0 === ai && r1 === bi) || (r0 === bi && r1 === ai));
-              const up = a.alive && b.alive;
+              const bothAlive = a.alive && b.alive;
+              const partitioned = bothAlive && a.group !== b.group;
+              const up = bothAlive && !partitioned;
               const toLeader = up && (leaderIdx === ai || leaderIdx === bi);
               const [x1, y1] = POS[ai];
               const [x2, y2] = POS[bi];
               // Backbone links carry the full LED treatment; the
               // remaining full-mesh links stay faint so the ring reads as
               // the primary topology.
-              const stroke = !up ? "var(--down)" : toLeader ? "#3f6f4a" : "#7d8791";
+              const stroke = !bothAlive ? "var(--down)" : partitioned ? "var(--split)" : toLeader ? "#3f6f4a" : "#7d8791";
               return (
                 <line
                   key={`${a.id}-${b.id}`}
@@ -172,7 +177,7 @@ export default function ClusterView({ tick, narrationByNode, mode, activeScenari
                   y2={y2}
                   stroke={stroke}
                   strokeWidth={ring ? (toLeader ? 2.2 : 1.6) : 1}
-                  strokeDasharray={up ? "none" : "9 7"}
+                  strokeDasharray={up ? "none" : partitioned ? "5 4" : "9 7"}
                   opacity={ring ? (up ? 0.95 : 0.85) : 0.16}
                 />
               );
@@ -301,6 +306,14 @@ function Legend() {
           </svg>
         }
         label="link down"
+      />
+      <Row
+        swatch={
+          <svg width="18" height="6">
+            <line x1="0" y1="3" x2="18" y2="3" stroke="var(--split)" strokeWidth="1.6" strokeDasharray="3 2.5" />
+          </svg>
+        }
+        label="network split"
       />
       <Row swatch={<Dot color="#3f9e5c" />} label="heartbeat in flight" />
       <Row swatch={<Dot color="#c98f22" />} label="vote request in flight" />

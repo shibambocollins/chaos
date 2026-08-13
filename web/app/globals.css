@@ -42,6 +42,11 @@
   --busy-pale: #f2e5c8;
   --down: #a8281d;
   --down-pale: #f0d5d2;
+  /* Partitioned: both ends are fine, only the path between them is gone.
+   * Deliberately its own hue, not a shade of --down, so a network split
+   * never reads as "something died" on sight. */
+  --split: #6b4fa0;
+  --split-pale: #e2d9ef;
 
   /* Hardware. Beige ABS plastic that has seen a few summers, and the
    * dark grey-green of a CRT that is switched off. The devices used to

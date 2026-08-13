@@ -56,13 +56,31 @@ export default function HowItWorks({ open, onClose }: { open: boolean; onClose: 
         <div className="panel-body" style={{ overflowY: "auto", padding: "12px 16px 16px", fontSize: 12.5, lineHeight: 1.55 }}>
           <Section title="What you are looking at">
             <p>
-              This page replays five computers running Raft, a protocol that lets a group of machines
+              This page shows five computers running Raft, a protocol that lets a group of machines
               agree on one shared, ordered history of data even when machines crash or the network
-              between them breaks. Every run shown here already happened: it was simulated by the Go
-              program behind this project (<code>internal/sim</code>) and saved as a recording. Nothing
-              on this page is live, and there is no server running behind it, so clicking an action on a
-              computer loads the matching recording and jumps to the moment that action happens in it,
-              rather than performing it on the spot.
+              between them breaks. It runs in two modes. <strong>Replay</strong> plays back a run
+              already simulated and saved by the Go program behind this project (<code>internal/sim</code>);
+              clicking an action jumps to the moment it happens in the recording rather than performing
+              it on the spot. <strong>Live</strong> connects to an actual <code>chaos-server</code> process
+              over HTTP and drives it for real, right now, if one happens to be running.
+            </p>
+          </Section>
+
+          <Section title="The objective">
+            <p>
+              There is no score, but there is a goal, and it doubles as a challenge: try to break one of
+              Raft&apos;s safety guarantees by clicking around. Specifically, try to cause any of these:
+            </p>
+            <ul style={{ margin: "6px 0 8px", paddingLeft: 18, display: "flex", flexDirection: "column", gap: 4 }}>
+              <li><strong>Split brain</strong>: get two computers to both believe they are leader in the same term.</li>
+              <li><strong>Silent data loss</strong>: make a write that was already committed disappear or change.</li>
+              <li><strong>A stuck majority</strong>: partition the cluster so badly that no side can ever elect a leader, even though a majority is technically still reachable somewhere.</li>
+            </ul>
+            <p>
+              You will not manage it. <code>internal/sim</code>&apos;s property-based test suite already runs
+              50 seeds × 200 rounds of randomized kills, restarts, partitions, and heals, checking for exactly
+              these failures after every single simulated event, not just at the end of a run. That
+              continuous checking, not the visualization, is the actual engineering behind this project.
             </p>
           </Section>
 
@@ -92,6 +110,26 @@ export default function HowItWorks({ open, onClose }: { open: boolean; onClose: 
               agree before anything is considered permanently saved, and a computer is never allowed to
               overwrite already-agreed history, even during a leader change. Those two rules are what
               this project&apos;s tests exist to check.
+            </p>
+          </Section>
+
+          <Section title="Contribute">
+            <p>
+              This project is open source:{" "}
+              <a
+                href="https://github.com/shibambocollins/chaos"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ color: "var(--accent)", textDecoration: "underline" }}
+              >
+                github.com/shibambocollins/chaos
+              </a>
+              . Issues and pull requests are welcome. A concrete place to start: the workspace&apos;s
+              message pulses are a role-based approximation of traffic, not a replay of literal
+              messages, because the trace format does not record individual RPCs yet (see the comment
+              above <code>ClusterView</code>&apos;s <code>pulses</code>). Recording message-level events
+              in <code>internal/sim</code>&apos;s <code>TraceRecorder</code> and animating the real thing
+              would be a solid first pull request.
             </p>
           </Section>
         </div>
@@ -139,6 +177,6 @@ const ENTRIES: [string, string][] = [
   ["heartbeat", "A small message the leader sends every computer, regularly, just to say \"I am still here.\" If followers stop hearing it, they assume the leader died and start an election."],
   ["kill / power off", "A computer stops responding entirely, as if unplugged. It cannot send or receive anything until it restarts."],
   ["restart", "A killed computer comes back. It remembers what it had saved before, but has to be told anything it missed while it was off."],
-  ["partition / network split", "The computers can no longer all reach each other, as if a cable were cut, even though every computer is still powered on. Only a side with a majority can keep accepting writes; a minority side stalls rather than risk disagreeing with the other side."],
+  ["partition / network split", "The computers can no longer all reach each other, as if a cable were cut, even though every computer is still powered on. Only a side with a majority can keep accepting writes; a minority side stalls rather than risk disagreeing with the other side. Shown on screen as a violet dashed line between the computers that can no longer reach each other."],
   ["heal", "A partition is repaired and every computer can reach every other computer again."],
 ];

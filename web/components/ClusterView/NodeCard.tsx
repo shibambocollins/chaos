@@ -100,6 +100,15 @@ export default function NodeCard({
   const isLeader = on && node.role === "Leader";
   const isCand = on && node.role === "Candidate";
 
+  // The screen goes fully invisible while off (see screenOpacity below),
+  // which is realistic (a dead monitor shows nothing), but it also means
+  // a powered-off node's own DO tab, where "restart" lives, is invisible
+  // right when you need it. The physical power control is the answer on
+  // real hardware too: press it, don't read the (blank) screen. Wired
+  // only in live mode, since replay's actions aren't tied to a specific
+  // node's power state the same way.
+  const onPower = mode === "live" ? () => onLiveAction(on ? "kill" : "restart") : undefined;
+
   // Plain wording first, exact Raft term underneath. Someone who knows
   // the protocol still gets "Leader / term 2"; someone who does not can
   // read the cluster off the screens without being taught the words.
@@ -200,7 +209,7 @@ export default function NodeCard({
       )}
 
       <div style={{ position: "relative", display: "flex", alignItems: "flex-end", gap: 9 }}>
-        {isTower && <Tower on={on} pwrColor={pwrColor} ledAnim={ledAnim} />}
+        {isTower && <Tower on={on} pwrColor={pwrColor} ledAnim={ledAnim} onPower={onPower} />}
 
         <div style={{ position: "relative" }}>
           {/* Monitor: thick putty bezel around a recessed tube. */}
@@ -273,14 +282,27 @@ export default function NodeCard({
                 <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
                   <span style={{ width: 14, height: 3, background: "var(--case-vent)", borderTop: "1px solid var(--case-shadow)" }} />
                   <span style={{ width: 14, height: 3, background: "var(--case-vent)", borderTop: "1px solid var(--case-shadow)" }} />
-                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: pwrColor, animation: ledAnim, border: "1px solid rgba(0,0,0,.35)" }} />
+                  <span
+                    title={onPower ? (on ? "kill" : "restart") : undefined}
+                    onClick={
+                      onPower &&
+                      ((e) => {
+                        e.stopPropagation();
+                        onPower();
+                      })
+                    }
+                    style={{
+                      width: 6, height: 6, borderRadius: "50%", background: pwrColor, animation: ledAnim,
+                      border: "1px solid rgba(0,0,0,.35)", cursor: onPower ? "pointer" : "default",
+                    }}
+                  />
                 </span>
               </div>
             )}
           </div>
 
           {!isLaptop && <Stand />}
-          {isLaptop && <LaptopBase pwrColor={pwrColor} ledAnim={ledAnim} />}
+          {isLaptop && <LaptopBase on={on} pwrColor={pwrColor} ledAnim={ledAnim} onPower={onPower} />}
         </div>
       </div>
 
@@ -379,8 +401,9 @@ function ActionScreen({
   onLiveAction: (kind: LiveActionKind) => void;
 }) {
   if (mode === "live") {
+    const prompt = `pc${node.id}`;
     return (
-      <div style={{ height: "100%", overflow: "auto", display: "flex", flexDirection: "column", gap: 2 }}>
+      <div style={{ height: "100%", overflow: "auto", display: "flex", flexDirection: "column", gap: 1, fontFamily: "var(--mono-font)" }}>
         {LIVE_ACTIONS.map((a) => {
           const canDo = a.enabled(node);
           return (
@@ -395,18 +418,24 @@ function ActionScreen({
               style={{
                 display: "block", width: "100%", textAlign: "left",
                 cursor: canDo ? "pointer" : "default",
-                padding: "3px 5px", font: "inherit", fontSize: 8.5, lineHeight: 1.25,
-                color: canDo ? "#dfe8f2" : "#586170",
-                background: canDo ? "#243447" : "#171c23",
-                border: `1px solid ${canDo ? "#3d5a7a" : "#232830"}`,
+                padding: "1.5px 4px", font: "inherit", background: "transparent", border: "none",
               }}
             >
-              {a.label}
+              <div style={{ fontSize: 8.5, lineHeight: 1.4 }}>
+                <span style={{ color: canDo ? "#4fbf7a" : "#3d4650" }}>{prompt}</span>
+                <span style={{ color: "#586170" }}>:~$ </span>
+                <span style={{ color: canDo ? "#e8edf3" : "#586170" }}>{a.cmd}</span>
+              </div>
+              <div style={{ fontSize: 7, lineHeight: 1.3, color: "#4d5765", paddingLeft: 2 }}>
+                # {a.detail}
+              </div>
             </button>
           );
         })}
-        <div style={{ fontSize: 7, lineHeight: 1.3, color: "#4d5765", paddingTop: 2 }}>
-          These happen for real, right now, on the running cluster.
+        <div style={{ fontSize: 8.5, lineHeight: 1.4, padding: "2px 4px", display: "flex", alignItems: "center", gap: 3 }}>
+          <span style={{ color: "#4fbf7a" }}>{prompt}</span>
+          <span style={{ color: "#586170" }}>:~$</span>
+          <span style={{ color: "#e8edf3", animation: "chaosLed .9s step-end infinite" }}>&#9608;</span>
         </div>
       </div>
     );
@@ -468,7 +497,11 @@ const CASE_FACE = "linear-gradient(160deg, var(--case-lit), var(--case) 50%, var
 const CASE_EDGE = "1px solid var(--case-edge)";
 const CASE_SHADOW = "0 6px 12px rgba(60,55,40,.24), 0 1px 2px rgba(60,55,40,.28)";
 
-function Tower({ on, pwrColor, ledAnim }: { on: boolean; pwrColor: string; ledAnim: string }) {
+function Tower({
+  on, pwrColor, ledAnim, onPower,
+}: {
+  on: boolean; pwrColor: string; ledAnim: string; onPower?: () => void;
+}) {
   return (
     <div
       style={{
@@ -492,12 +525,20 @@ function Tower({ on, pwrColor, ledAnim }: { on: boolean; pwrColor: string; ledAn
       </div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <span
-          title="power"
+          title={onPower ? (on ? "kill" : "restart") : "power"}
+          onClick={
+            onPower &&
+            ((e) => {
+              e.stopPropagation();
+              onPower();
+            })
+          }
           style={{
             width: 17, height: 17, borderRadius: "50%",
             background: "radial-gradient(circle at 35% 30%, var(--case-lit), var(--case-dim))",
             border: "1px solid var(--case-shadow)",
             display: "grid", placeItems: "center", fontSize: 8, color: "#7d7563",
+            cursor: onPower ? "pointer" : "default",
           }}
         >
           &#9211;
@@ -523,7 +564,11 @@ function Stand() {
   );
 }
 
-function LaptopBase({ pwrColor, ledAnim }: { pwrColor: string; ledAnim: string }) {
+function LaptopBase({
+  on, pwrColor, ledAnim, onPower,
+}: {
+  on: boolean; pwrColor: string; ledAnim: string; onPower?: () => void;
+}) {
   return (
     <div
       style={{
@@ -539,7 +584,21 @@ function LaptopBase({ pwrColor, ledAnim }: { pwrColor: string; ledAnim: string }
           <span key={i} style={{ width: 34, height: 5, background: "var(--case-vent)", border: "1px solid var(--case-shadow)" }} />
         ))}
       </div>
-      <span style={{ width: 5, height: 5, borderRadius: "50%", background: pwrColor, border: "1px solid rgba(0,0,0,.35)", animation: ledAnim }} />
+      <span
+        title={onPower ? (on ? "kill" : "restart") : undefined}
+        onClick={
+          onPower &&
+          ((e) => {
+            e.stopPropagation();
+            onPower();
+          })
+        }
+        style={{
+          width: 5, height: 5, borderRadius: "50%", background: pwrColor,
+          border: "1px solid rgba(0,0,0,.35)", animation: ledAnim,
+          cursor: onPower ? "pointer" : "default",
+        }}
+      />
     </div>
   );
 }

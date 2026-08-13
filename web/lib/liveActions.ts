@@ -5,50 +5,55 @@ import type { TraceNodeState } from "./trace";
 // request to a running chaos-server and do the thing on the spot, see
 // lib/liveClient.ts for the actual requests.
 //
-// There is deliberately no "make this computer a follower" action. Raft
+// Presented as a command list rather than plain-English sentences: this
+// screen is the one place in the app where the audience is assumed to
+// already know what a partition or a quorum is, since these buttons are
+// one keystroke away from Simulator's own method names.
+//
+// There is deliberately no "make this computer a follower" command. Raft
 // doesn't let you assign that any more than it lets you assign a leader,
 // every alive node that isn't currently leading or campaigning already is
-// a follower, and killing or restarting whichever node is currently
-// leader is what puts it back to being one. Two actions cover it, so a
-// third one would just be redundant.
+// one, and killing or restarting whichever node currently leads is what
+// puts it back to being one. Two commands cover it, so a third would just
+// be redundant.
 export type LiveActionKind = "kill" | "restart" | "favor" | "isolate" | "heal";
 
 export interface LiveActionDef {
   kind: LiveActionKind;
-  label: string;
-  detail: string;
+  cmd: string; // the command name, as typed at the prompt
+  detail: string; // one-line technical note, shown as a trailing comment
   enabled: (node: TraceNodeState) => boolean;
 }
 
 export const LIVE_ACTIONS: LiveActionDef[] = [
   {
     kind: "kill",
-    label: "Cut the power to this computer",
-    detail: "It stops responding immediately, as if unplugged.",
+    cmd: "kill",
+    detail: "marks the node down; no graceful shutdown, no event delivered to Step()",
     enabled: (n) => n.alive,
   },
   {
     kind: "restart",
-    label: "Switch this computer back on",
-    detail: "It comes back as a follower and catches up on whatever it missed.",
+    cmd: "restart",
+    detail: "resets volatile state, preserves currentTerm/votedFor/log, fresh election timer",
     enabled: (n) => !n.alive,
   },
   {
     kind: "favor",
-    label: "Try to put this computer in charge",
-    detail: "Takes a couple of its rivals offline for a moment so it only has to out-race the rest, then brings them back. Not guaranteed: Raft doesn't let you assign a leader directly, only improve its odds.",
+    cmd: "favor",
+    detail: "downs quorum-1 rivals to shrink the field; not a forced result, Raft has no such primitive",
     enabled: (n) => n.alive,
   },
   {
     kind: "isolate",
-    label: "Cut this computer off from the network",
-    detail: "It stays powered on but can't reach, or be reached by, any other computer until reconnected.",
+    cmd: "partition",
+    detail: "splits the cluster into {this node} | {everyone else}; minority side can never reach quorum",
     enabled: (n) => n.alive,
   },
   {
     kind: "heal",
-    label: "Reconnect the whole network",
-    detail: "Undoes any network split currently in effect, for every computer, not just this one.",
+    cmd: "heal",
+    detail: "clears the active partition cluster-wide",
     enabled: () => true,
   },
 ];

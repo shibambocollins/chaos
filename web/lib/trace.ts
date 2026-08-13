@@ -12,6 +12,11 @@ export interface TraceNodeState {
   currentTerm: number;
   logLen: number;
   commitIndex: number;
+  // Which partition group this node is in, or -1 when the cluster is
+  // fully healed. Mirrors internal/sim.Simulator.Group exactly: two
+  // alive nodes can reach each other iff their group values are equal
+  // (including the -1 == -1 healed case), nothing fancier.
+  group: number;
 }
 
 export interface TraceTick {

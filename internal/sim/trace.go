@@ -13,6 +13,7 @@ type TraceNodeState struct {
 	CurrentTerm uint64 `json:"currentTerm"`
 	LogLen      int    `json:"logLen"`
 	CommitIndex uint64 `json:"commitIndex"`
+	Group       int    `json:"group"` // see Simulator.Group: -1 means no active partition
 }
 
 // TraceTick is one recorded moment in a run: every node's state, plus
@@ -86,6 +87,7 @@ func (r *TraceRecorder) Observe() {
 			CurrentTerm: n.CurrentTerm,
 			LogLen:      len(n.Log),
 			CommitIndex: n.CommitIndex,
+			Group:       r.s.Group(id),
 		}
 
 		if prev, ok := r.prev[id]; ok {
@@ -120,6 +122,13 @@ func diffNarration(prev, cur TraceNodeState) []string {
 	}
 	if cur.Alive && cur.CommitIndex > prev.CommitIndex {
 		lines = append(lines, fmt.Sprintf("node %d committed index %d", cur.ID, cur.CommitIndex))
+	}
+	if cur.Alive && prev.Group != cur.Group {
+		if cur.Group == -1 {
+			lines = append(lines, fmt.Sprintf("node %d reconnected to the rest of the cluster", cur.ID))
+		} else {
+			lines = append(lines, fmt.Sprintf("node %d lost contact with part of the cluster", cur.ID))
+		}
 	}
 
 	return lines

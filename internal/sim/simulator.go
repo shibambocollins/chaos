@@ -168,6 +168,21 @@ func (s *Simulator) connected(a, b int) bool {
 	return s.groupOf[a] == s.groupOf[b]
 }
 
+// Group reports which partition group id currently belongs to, or -1 if
+// the cluster is fully healed (no active partition). -1 is deliberately
+// outside Partition's group indices (0-based), so callers — the trace
+// recorder and the live server, both of which need to tell "healed" apart
+// from "this node happens to be in group 0 of an active partition" — can
+// compare two nodes' Group values directly: equal means connected,
+// unequal means partitioned apart, and that holds whether or not either
+// side is -1.
+func (s *Simulator) Group(id int) int {
+	if s.groupOf == nil {
+		return -1
+	}
+	return s.groupOf[id]
+}
+
 // SetFaultConfig sets the random drop/duplicate rates every subsequent send
 // rolls against. Existing tests that never call this keep the zero value —
 // no faults.

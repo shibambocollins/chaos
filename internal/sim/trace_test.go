@@ -98,3 +98,63 @@ func TestTraceRecorder_NarratesKillAndRestart(t *testing.T) {
 		t.Fatalf("expected 'node 2 restarted' narration, got %v", all)
 	}
 }
+
+func TestTraceRecorder_NarratesPartitionAndHeal(t *testing.T) {
+	nodes := map[int]*raft.NodeState{
+		1: raft.NewNodeState(1, []int{2, 3}),
+		2: raft.NewNodeState(2, []int{1, 3}),
+		3: raft.NewNodeState(3, []int{1, 2}),
+	}
+	s := NewSimulator(nodes, rand.New(rand.NewSource(1)))
+	rec := NewTraceRecorder(s, "partition-heal")
+	rec.Observe()
+
+	s.Partition([][]int{{1}, {2, 3}})
+	rec.Observe()
+	s.Heal()
+	rec.Observe()
+
+	trace := rec.Build()
+
+	// The very first tick after Partition should show every node's Group
+	// field distinguishing the two sides — this is the whole point of the
+	// field, so check it directly rather than only its narration.
+	afterPartition := trace.Ticks[1]
+	groups := make(map[int]int, len(afterPartition.Nodes))
+	for _, n := range afterPartition.Nodes {
+		groups[n.ID] = n.Group
+	}
+	if groups[1] == groups[2] || groups[2] != groups[3] {
+		t.Fatalf("expected node 1 in its own group, nodes 2 and 3 sharing one, got %+v", groups)
+	}
+
+	var all []string
+	for _, tick := range trace.Ticks {
+		all = append(all, tick.Narration...)
+	}
+
+	wantLostContact, wantReconnected := false, false
+	for _, line := range all {
+		if line == "node 1 lost contact with part of the cluster" {
+			wantLostContact = true
+		}
+		if line == "node 1 reconnected to the rest of the cluster" {
+			wantReconnected = true
+		}
+	}
+	if !wantLostContact {
+		t.Fatalf("expected 'node 1 lost contact with part of the cluster' narration, got %v", all)
+	}
+	if !wantReconnected {
+		t.Fatalf("expected 'node 1 reconnected to the rest of the cluster' narration, got %v", all)
+	}
+
+	// After Heal, every node's Group must read -1 — the sentinel "no
+	// active partition" value, not merely "same as everyone else's."
+	afterHeal := trace.Ticks[len(trace.Ticks)-1]
+	for _, n := range afterHeal.Nodes {
+		if n.Group != -1 {
+			t.Fatalf("expected Group -1 for every node after Heal, node %d has %d", n.ID, n.Group)
+		}
+	}
+}

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Chaos — Raft Cluster Visualizer",
+  title: "Chaos Raft Cluster Visualizer",
   description: "Replaying deterministic Raft simulation traces from internal/sim.",
 };
 

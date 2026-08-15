@@ -27,8 +27,10 @@ web/dist/
 web/build/
 web/.env*
 
-# Claude Code — personal, not shared
-.claude/settings.local.json
+# Claude Code — personal, not shared / not part of the public repo
+.claude/
+CLAUDE.md
+web/CLAUDE.md
 
 # Editors/IDEs — personal, not shared
 .idea/

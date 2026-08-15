@@ -158,6 +158,7 @@ type NodeSummary struct {
 	LogLen       int
 	CommitIndex  uint64
 	AppliedCount int
+	Group        int // see Simulator.Group: -1 means no active partition
 }
 
 // Report summarizes one completed simulation run: final per-node state,
@@ -190,6 +191,7 @@ func BuildReport(seed int64, s *Simulator, monitor *SafetyMonitor, eventsProcess
 			LogLen:       len(n.Log),
 			CommitIndex:  n.CommitIndex,
 			AppliedCount: len(s.applied[id]),
+			Group:        s.Group(id),
 		})
 	}
 

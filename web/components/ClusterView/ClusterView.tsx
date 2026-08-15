@@ -1,13 +1,16 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { TraceTick } from "@/lib/trace";
 import NodeCard, { type NodeKind } from "./NodeCard";
+import type { ScenarioId } from "@/lib/loadTrace";
+import type { DeviceAction } from "@/lib/scenarioActions";
+import type { LiveActionKind } from "@/lib/liveActions";
 
 const W = 1400;
 const H = 800;
 
-// The ring occupies well less than the authored space — the devices span
+// The ring occupies well less than the authored space. The devices span
 // roughly 1180×745 around the same centre. Fitting to the content box
 // rather than to W×H is the difference between the cluster filling the
 // workspace and floating in the middle of it.
@@ -33,9 +36,13 @@ const RING: [number, number][] = [
 interface Props {
   tick: TraceTick;
   narrationByNode: Map<number, string[]>;
+  mode: "replay" | "live";
+  activeScenario: ScenarioId;
+  onAction: (a: DeviceAction) => void;
+  onLiveAction: (nodeId: number, kind: LiveActionKind) => void;
 }
 
-// ClusterView lays nodes out in a ring — makes majority/quorum instantly
+// ClusterView lays nodes out in a ring, which makes majority/quorum instantly
 // legible, since you can see at a glance whether a leader has enough
 // reachable neighbors around it.
 //
@@ -46,14 +53,14 @@ interface Props {
 // carries the same information the old glow did without competing with
 // the device screens for attention.
 //
-// Known simplification: link "connectivity" here is only "both endpoints
-// alive" — the trace doesn't yet record which partition group each node
-// was in at each tick, so a partition (nodes alive but unreachable from
-// each other) doesn't visually cut a link the way a Kill does. Adding that
-// would mean recording group membership per tick in internal/sim's
-// TraceRecorder, deliberately deferred alongside packet-in-flight
-// animation.
-export default function ClusterView({ tick, narrationByNode }: Props) {
+// A link has three states, not two: up, partitioned (both endpoints
+// alive, but on different sides of an active network split, per each
+// node's `group`), and down (an endpoint is dead). Partitioned gets its
+// own colour rather than reusing "down"'s, since the difference is the
+// whole point of a partition scenario: the machines are fine, only the
+// path between them is gone. See internal/sim.Simulator.Group for where
+// the group value comes from.
+export default function ClusterView({ tick, narrationByNode, mode, activeScenario, onAction, onLiveAction }: Props) {
   const [focus, setFocus] = useState<number | null>(null);
   const hostRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0.6);
@@ -75,9 +82,43 @@ export default function ClusterView({ tick, narrationByNode }: Props) {
   const nodes = tick.nodes;
   const leaderIdx = nodes.findIndex((n) => n.alive && n.role === "Leader");
 
+  // Traffic pulses: small dots travelling the full mesh, not just the
+  // ring, because that is the real Raft broadcast shape, a leader talks
+  // to every follower directly, a candidate asks every peer directly.
+  // Derived entirely from the role each node already has this tick, no
+  // message-level data is recorded, so this is an honest approximation
+  // ("something is being sent this direction") rather than a replay of
+  // literal packets. Keyed on tick.at so every step restarts the motion,
+  // which reads as "traffic happening again this moment" rather than one
+  // continuous loop that has nothing to do with where you are.
+  const pulses = useMemo(() => {
+    const out: { key: string; x1: number; y1: number; x2: number; y2: number; color: string; duration: number }[] = [];
+    const push = (from: number, to: number, color: string) => {
+      const [x1, y1] = POS[from];
+      const [x2, y2] = POS[to];
+      const dist = Math.hypot(x2 - x1, y2 - y1);
+      out.push({ key: `${from}-${to}`, x1, y1, x2, y2, color, duration: Math.min(1.6, Math.max(0.55, dist / 620)) });
+    };
+    nodes.forEach((n, i) => {
+      if (!n.alive) return;
+      // A partitioned-away peer can't actually receive this, so no pulse
+      // draws toward it. Same honesty the link colour below applies.
+      if (i === leaderIdx) {
+        nodes.forEach((peer, j) => {
+          if (j !== i && peer.alive && peer.group === n.group) push(i, j, "#3f9e5c");
+        });
+      } else if (n.role === "Candidate") {
+        nodes.forEach((peer, j) => {
+          if (j !== i && peer.alive && peer.group === n.group) push(i, j, "#c98f22");
+        });
+      }
+    });
+    return out;
+  }, [nodes, leaderIdx]);
+
   // Selecting a device zooms it, which would push a node on the rim of
   // the ring off the edge of the workspace. Pull the whole layout partway
-  // toward that device to compensate — partway rather than all the way so
+  // toward that device to compensate, partway rather than all the way so
   // the ring stays recognisable and you don't lose your bearings.
   const [panX, panY] = focus === null ? [0, 0] : [(W / 2 - POS[focus][0]) * 0.6, (H / 2 - POS[focus][1]) * 0.6];
 
@@ -117,14 +158,16 @@ export default function ClusterView({ tick, narrationByNode }: Props) {
             nodes.slice(ai + 1).map((b, bj) => {
               const bi = ai + 1 + bj;
               const ring = RING.some(([r0, r1]) => (r0 === ai && r1 === bi) || (r0 === bi && r1 === ai));
-              const up = a.alive && b.alive;
+              const bothAlive = a.alive && b.alive;
+              const partitioned = bothAlive && a.group !== b.group;
+              const up = bothAlive && !partitioned;
               const toLeader = up && (leaderIdx === ai || leaderIdx === bi);
               const [x1, y1] = POS[ai];
               const [x2, y2] = POS[bi];
               // Backbone links carry the full LED treatment; the
               // remaining full-mesh links stay faint so the ring reads as
               // the primary topology.
-              const stroke = !up ? "var(--down)" : toLeader ? "#3f6f4a" : "#7d8791";
+              const stroke = !bothAlive ? "var(--down)" : partitioned ? "var(--split)" : toLeader ? "#3f6f4a" : "#7d8791";
               return (
                 <line
                   key={`${a.id}-${b.id}`}
@@ -134,12 +177,32 @@ export default function ClusterView({ tick, narrationByNode }: Props) {
                   y2={y2}
                   stroke={stroke}
                   strokeWidth={ring ? (toLeader ? 2.2 : 1.6) : 1}
-                  strokeDasharray={up ? "none" : "9 7"}
+                  strokeDasharray={up ? "none" : partitioned ? "5 4" : "9 7"}
                   opacity={ring ? (up ? 0.95 : 0.85) : 0.16}
                 />
               );
             }),
           )}
+        </svg>
+
+        {/* Message pulses ride between the mesh lines (z=1) and the
+            devices (z=2) so they read as travelling on the wire, not
+            floating over the machines. */}
+        <svg
+          viewBox={`0 0 ${W} ${H}`}
+          width={W}
+          height={H}
+          style={{ position: "absolute", left: 0, top: 0, zIndex: 1, pointerEvents: "none" }}
+        >
+          {pulses.map((p) => (
+            <circle key={`${p.key}-${tick.at}`} r={5} fill={p.color} stroke="#fff" strokeWidth={0.9}>
+              <animateMotion
+                dur={`${p.duration}s`}
+                repeatCount="indefinite"
+                path={`M${p.x1},${p.y1} L${p.x2},${p.y2}`}
+              />
+            </circle>
+          ))}
         </svg>
 
         {nodes.map((n, i) => (
@@ -157,6 +220,10 @@ export default function ClusterView({ tick, narrationByNode }: Props) {
               node={n}
               kind={KINDS[i]}
               narration={narrationByNode.get(n.id) ?? []}
+              mode={mode}
+              activeScenario={activeScenario}
+              onAction={onAction}
+              onLiveAction={(kind) => onLiveAction(n.id, kind)}
               focused={focus === i}
               dimmed={focus !== null && focus !== i}
               onFocus={() => setFocus(i)}
@@ -166,7 +233,7 @@ export default function ClusterView({ tick, narrationByNode }: Props) {
 
         {/* Port LEDs ride above the devices rather than below them. The
             chassis are different widths, so any fixed offset along the
-            link that clears a laptop is still swallowed by a tower — and
+            link that clears a laptop is still swallowed by a tower, and
             a port light sitting on the edge of the box is what it looks
             like on real hardware anyway. */}
         <svg
@@ -240,6 +307,16 @@ function Legend() {
         }
         label="link down"
       />
+      <Row
+        swatch={
+          <svg width="18" height="6">
+            <line x1="0" y1="3" x2="18" y2="3" stroke="var(--split)" strokeWidth="1.6" strokeDasharray="3 2.5" />
+          </svg>
+        }
+        label="network split"
+      />
+      <Row swatch={<Dot color="#3f9e5c" />} label="heartbeat in flight" />
+      <Row swatch={<Dot color="#c98f22" />} label="vote request in flight" />
     </div>
   );
 }

@@ -93,3 +93,26 @@ func TestNewNodeState_PeersAreSortedAndExcludeSelf(t *testing.T) {
 		}
 	}
 }
+
+func TestRole_JSONRoundTrip(t *testing.T) {
+	for _, want := range []Role{Follower, Candidate, Leader} {
+		data, err := want.MarshalJSON()
+		if err != nil {
+			t.Fatalf("MarshalJSON(%v): %v", want, err)
+		}
+		var got Role
+		if err := got.UnmarshalJSON(data); err != nil {
+			t.Fatalf("UnmarshalJSON(%s): %v", data, err)
+		}
+		if got != want {
+			t.Fatalf("round trip: want %v, got %v", want, got)
+		}
+	}
+}
+
+func TestRole_UnmarshalJSONRejectsUnknownName(t *testing.T) {
+	var r Role
+	if err := r.UnmarshalJSON([]byte(`"Wizard"`)); err == nil {
+		t.Fatal("expected an error for an unknown Role name, got nil")
+	}
+}

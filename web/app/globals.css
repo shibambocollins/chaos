@@ -1,4 +1,4 @@
-/* Chaos — classic network-workbench chrome.
+/* Chaos: classic network-workbench chrome.
  *
  * Deliberately a single light theme rather than a light/dark pair: the
  * whole visual conceit is a late-90s/2000s network simulator (Packet
@@ -10,7 +10,7 @@
  */
 
 :root {
-  /* Chrome — the application shell. */
+  /* Chrome: the application shell. */
   --chrome: #d8d5d0;
   --chrome-face: #edeae5;
   --chrome-sunken: #e2dfd9;
@@ -19,7 +19,7 @@
   --bevel-darker: #77726b;
   --rule: #b8b3ac;
 
-  /* Workspace — where the cluster is drawn. */
+  /* Workspace: where the cluster is drawn. */
   --workspace: #fbfbfa;
   --workspace-grid: #e4e7ea;
   --workspace-edge: #a8a39c;
@@ -34,7 +34,7 @@
   --accent-lit: #2f6fb5;
   --accent-pale: #cfe0f2;
 
-  /* Status. Muted-but-saturated, the way an LED silkscreen reads —
+  /* Status. Muted-but-saturated, the way an LED silkscreen reads,
    * not the neon oklch glows this replaced. */
   --up: #1c7a35;
   --up-pale: #d3e8d7;
@@ -42,6 +42,24 @@
   --busy-pale: #f2e5c8;
   --down: #a8281d;
   --down-pale: #f0d5d2;
+  /* Partitioned: both ends are fine, only the path between them is gone.
+   * Deliberately its own hue, not a shade of --down, so a network split
+   * never reads as "something died" on sight. */
+  --split: #6b4fa0;
+  --split-pale: #e2d9ef;
+
+  /* Hardware. Beige ABS plastic that has seen a few summers, and the
+   * dark grey-green of a CRT that is switched off. The devices used to
+   * be moulded from black glass with coloured underglow, which is a
+   * 2020s product-render look; putty-coloured boxes are what a network
+   * diagram of this vintage actually had on it. */
+  --case-lit: #e8e2d0;
+  --case: #d9d2be;
+  --case-dim: #c4bca6;
+  --case-edge: #a79e87;
+  --case-shadow: #8a8270;
+  --case-vent: #b3ab95;
+  --crt: #0e120f;
 
   --ui-font: "Segoe UI", Tahoma, Verdana, Geneva, sans-serif;
   --mono-font: Consolas, "Lucida Console", ui-monospace, Menlo, monospace;
@@ -80,7 +98,7 @@ a {
 /* ---- Bevels -------------------------------------------------------
  * Two primitives, used everywhere. `raised` = a button face or panel
  * sitting above the chrome; `sunken` = a well cut into it. Both are
- * pure border tricks, no shadows, no blur — that's what makes it read
+ * pure border tricks, no shadows, no blur, which is what makes it read
  * as period-correct rather than as a soft modern card.
  */
 
@@ -184,56 +202,6 @@ a {
   border-left-color: var(--accent);
 }
 
-/* Device-palette buttons: taller, icon over label, latched when active —
- * the bottom-left device tray in Packet Tracer. */
-.tool {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 3px;
-  width: 62px;
-  height: 50px;
-  padding: 4px 2px 3px;
-  font: inherit;
-  font-size: 9.5px;
-  color: var(--ink-muted);
-  cursor: pointer;
-  background: transparent;
-  border: 1px solid transparent;
-}
-
-.tool:hover {
-  color: var(--ink);
-  background: var(--accent-pale);
-  border-color: var(--accent-lit);
-}
-
-.tool.on {
-  color: var(--ink);
-  background: var(--chrome-sunken);
-  border: 1px solid var(--bevel-light);
-  border-top-color: var(--bevel-darker);
-  border-left-color: var(--bevel-darker);
-}
-
-.tool svg {
-  display: block;
-}
-
-.menu-item {
-  padding: 3px 9px 4px;
-  font-size: 12px;
-  color: var(--ink);
-  cursor: default;
-  border: 1px solid transparent;
-}
-
-.menu-item:hover {
-  background: var(--accent-pale);
-  border-color: var(--accent-lit);
-}
-
 .sep {
   width: 1px;
   align-self: stretch;
@@ -242,13 +210,7 @@ a {
   border-right: 1px solid var(--bevel-light);
 }
 
-/* Sliders and selects, dragged back toward the era. */
-input[type="range"] {
-  height: 18px;
-  cursor: pointer;
-  accent-color: var(--accent);
-}
-
+/* Selects, dragged back toward the era. */
 select {
   height: 22px;
   padding: 0 4px;
@@ -388,7 +350,7 @@ select {
   0% { transform: translateY(-140%) }
   100% { transform: translateY(430%) }
 }
-/* Marching-ants marquee on the selected device — the period-correct way
+/* Marching-ants marquee on the selected device: the period-correct way
  * to show selection, replacing the breathing neon halo. */
 @keyframes chaosMarquee {
   to { stroke-dashoffset: -12 }

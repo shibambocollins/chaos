@@ -1,124 +1,65 @@
 # Chaos
 
-A from-scratch implementation of the **Raft consensus algorithm**, running inside a **deterministic, replayable simulated network**, with fault injection and correctness testing built in from day one — plus a live browser visualization you can watch (and break) in real time.
+Chaos is a Raft implementation written from scratch in Go, running on top of a deterministic network simulator instead of real sockets and real time. The simulator can drop messages, duplicate them, delay them, kill nodes, and partition the network, and because everything runs off a single seeded random number generator, any run can be replayed exactly.
 
-This isn't a Raft tutorial with a UI bolted on. The point of the project is the correctness engineering: proving that a cluster of nodes stays consistent even when the network is actively working against it.
+I built this to actually understand Raft, not just read the paper and nod along. Consensus bugs are almost always timing bugs, and timing bugs on a real network are nearly impossible to reproduce reliably. Running the whole cluster inside a simulator you control means you can hit the same bad interleaving of messages over and over until you actually understand why it broke, instead of hoping it happens again.
 
----
+## What's here
 
-## What problem is this actually solving?
+- `internal/raft` - the Raft state machine itself. Leader election, log replication, commit index. No goroutines, no `time.Now()`, no real randomness anywhere in here, everything it needs gets passed in as an argument.
+- `internal/sim` - the event loop that drives the nodes. It owns a virtual clock and a priority queue of events, and decides when (or if) a message actually gets delivered. Kill/restart/partition/heal live here too, as operations on scheduling and routing, not something a node is ever told about.
+- `internal/server` - a small HTTP layer for running one live cluster and streaming its state out over server-sent events.
+- `internal/twopc` - a basic two-phase commit implementation, mostly to have something to compare against Raft. 2PC's coordinator just blocks forever if it dies mid-commit; Raft elects a new leader and keeps going.
+- `cmd/chaos` - a CLI that runs a batch of randomized fault-injection scenarios and checks Raft's safety properties after each one. Can also export a single scenario as a JSON trace.
+- `cmd/chaos-server` - runs a live cluster over HTTP for the frontend to control.
+- `web/` - a Next.js UI that either replays an exported trace step by step, or drives a live cluster and shows elections and replication happening as they occur.
 
-Imagine you have several database servers that are supposed to agree on the same sequence of operations — say, five copies of a bank ledger. If they ever disagree about the order events happened in, you get double-spends and lost transactions. Keeping distributed copies of data in agreement, even when machines crash and network links fail, is one of the hardest problems in computer science. **Raft** is an algorithm that solves it: it lets a cluster of machines elect a leader, replicate a log of operations, and keep working correctly even if some machines die or the network partitions into two groups that can't talk to each other.
+## Why it's deterministic
 
-The catch with implementing something like Raft is that its hardest bugs only show up under specific, rare timing conditions — a message arriving a few milliseconds late, two crashes happening back to back, a partition healing at just the wrong moment. Testing against a real network means waiting for these situations to happen by chance, and a bug that only reproduces once every 500 runs is nearly impossible to debug.
+Every Raft node is written as a pure function: `Step(event, rng)` returns a list of outbound actions. It doesn't send anything itself, it just describes what it wants done (send this message, persist this state, reset that timer), and the simulator is the only thing that actually carries it out. Since the node never touches real time, real concurrency, or Go's global rand, the same seed always produces the same sequence of events. That's what makes replaying a failing run possible instead of just hoping to catch it again.
 
-This project sidesteps that by never using a real network or real clock at all. Instead, the entire cluster runs inside a **deterministic simulator**: a single-threaded event loop that owns a virtual clock and decides exactly when every message is delivered, dropped, duplicated, or delayed. Every random decision (election timeouts, message loss, latency) is derived from one seeded random number generator. The result: the *exact same seed* always produces the *exact same sequence of events*, every time. That means:
-
-- A bug found once can be replayed exactly, instead of chased for hours.
-- Thousands of randomized failure scenarios can run in seconds, instead of real time.
-- Correctness can be checked continuously against Raft's formal safety properties, not just eyeballed from a demo.
-
-This is the same technique used by systems like FoundationDB and TigerBeetle to validate distributed databases before they ship.
-
----
-
-## How it works, technically
-
-### Architecture
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                     internal/sim (Simulator)                │
-│  Owns: virtual clock, event min-heap, one seeded *rand.Rand │
-│  Decides: delivery order, drop/duplicate/latency,           │
-│           Kill / Restart / Partition / Heal                 │
-└───────────────────────────┬───────────────────────────────--┘
-                             │ Event in → []Outbound out
-                             ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    internal/raft (NodeState)                │
-│  Pure function core: Step(Event, rng) []Outbound             │
-│  No time.Now(), no goroutines, no global rand, no I/O        │
-│  Follower / Candidate / Leader, terms, log replication        │
-└─────────────────────────────────────────────────────────────┘
-```
-
-**The core design decision:** a Raft node is a pure function, not a live goroutine. `Step(event, rng) []Outbound` takes one event (a message arriving, a timer firing) and returns a description of what it wants done — send this message, persist this state, reset that timer. It never does any of that itself. The simulator is the only thing that actually moves time forward, delivers messages, or applies faults. This separation is what makes exact replay possible: nothing in the node's logic can introduce timing variance, because it has no access to real time, real randomness, or real concurrency in the first place.
-
-**Fault injection is not special-cased.** Drop, duplicate, and latency are just parameters to the one function that decides whether/when a "send this message" request turns into a scheduled delivery event. Reordering isn't implemented as its own feature — it falls out for free: if message A is sent before message B but B samples a shorter delay, B is simply delivered first. Kill, Restart, Partition, and Heal are simulator-level operations on scheduling and routing — a node is never told it's being tested; a killed node just silently stops being scheduled, the same way a real crashed process gets no warning either.
-
-### What's implemented
-
-- **`internal/raft`** — the Raft state machine: leader election with randomized timeouts and the election-log-restriction safety check, log replication with the log-matching property, and the current-term-only rule for advancing commit index (the classic Raft correctness pitfall, per the paper's Figure 8 scenario).
-- **`internal/sim`** — the deterministic event-loop simulator: a min-heap event queue, fault injection (drop/duplicate/latency), Kill/Restart/Partition/Heal, and a `SafetyMonitor` that continuously checks all five of Raft's safety properties (Election Safety, Leader Append-Only, Log Matching, Leader Completeness, State Machine Safety) throughout a run — not just at the end.
-- **`internal/server`** — an HTTP layer that hosts one live cluster, exposing snapshots and a server-sent-events stream so a frontend can watch (and control) a real running cluster.
-- **`internal/twopc`** — a simplified Two-Phase Commit implementation, kept as a point of comparison: 2PC's coordinator blocks forever on failure, where Raft elects a new leader and keeps going.
-- **`cmd/chaos`** — a CLI fault-injection runner: drives many seeded, randomized scenarios (kill/restart/partition/heal/client-requests) through the simulator and reports pass/fail against the five safety properties, or exports a single curated scenario as a JSON trace.
-- **`cmd/chaos-server`** — hosts a live cluster over HTTP for the frontend to drive interactively.
-- **`web/`** — a Next.js/React/TypeScript visualization with two modes: replaying an exported trace step-by-step, or driving a live cluster in real time (kill nodes, partition the network, heal it, submit client commands, and watch leader election and replication happen).
-
-### Correctness rules enforced throughout
-
-- No `time.Now()`, no package-level `math/rand`, no goroutines, no real blocking channel sends anywhere in the deterministic core — everything nondeterministic is passed in explicitly.
-- Never range over a Go map when iterating peers to send RPCs (map iteration order is randomized in Go, which would silently break replay) — always a sorted slice of peer IDs.
-- Every timer has a generation counter, bumped on every legitimate reset, so a stale timer firing after a reset is correctly ignored.
-- A leader only advances its commit index off a majority-replicated count for entries from its own current term — never an older term, even if a majority now happens to hold a copy of it.
-- A voter rejects `RequestVote` if the candidate's log is less up-to-date than its own.
-- State is persisted (`OutPersist`) before any corresponding message is sent (`OutSendMessage`), on every path.
-
----
+Fault injection isn't a special mode bolted on top. Drop, duplicate, and latency are just parameters in the one function that turns a "send this message" call into a scheduled delivery event. Reordering isn't even implemented as its own thing, it just happens naturally when a later message samples a shorter delay and ends up delivered first.
 
 ## Running it
 
-**Requirements:** Go 1.25+, Node.js (for the web UI).
+Needs Go 1.25+, and Node if you want the web UI.
 
-```bash
-# Run the full test suite, race detector included (non-optional on this project —
-# the entire point is proving there's no hidden nondeterminism)
+```
 go test ./... -race
+```
 
-# Run a batch of randomized fault-injection scenarios
+The race detector isn't optional here. The whole point of this project is proving there's no hidden nondeterminism, so it has to stay clean.
+
+Run a batch of fault-injection scenarios:
+
+```
 go run ./cmd/chaos -seeds 50 -rounds 200
+```
 
-# Export one curated scenario (e.g. the partition/heal worked example) as a trace
+Export one scenario as a trace file:
+
+```
 go run ./cmd/chaos -trace partition-heal -trace-out trace.json
+```
 
-# Host a live cluster over HTTP
+Run a live cluster over HTTP:
+
+```
 go run ./cmd/chaos-server
 ```
 
-```bash
-# In a second terminal, run the frontend against the live server
+Then in a second terminal:
+
+```
 cd web
 npm install
 npm run dev
 ```
 
-Then open the printed local URL to watch the cluster, or load an exported trace to step through a specific scenario.
+Open the local URL it prints to watch a live cluster, or load a trace to step through a specific scenario.
 
-This project is developed and run locally — it isn't deployed or hosted anywhere.
+Nothing here is deployed anywhere. It's meant to run locally.
 
----
+## Status
 
-## Project layout
-
-```
-internal/raft     Raft state machine — pure, deterministic, no I/O
-internal/sim      Event-loop simulator, fault injection, safety monitor
-internal/server   HTTP layer for driving a live cluster
-internal/twopc    Two-Phase Commit, for comparison against Raft
-cmd/chaos         CLI fault-injection runner / trace exporter
-cmd/chaos-server  HTTP server hosting a live cluster
-cmd/twopc         2PC demo entrypoint
-web/              Next.js/React visualization (trace playback + live mode)
-docs/             Full architecture doc, decisions log, Raft correctness reference
-```
-
-See [`docs/CHAOS_PROJECT_CONTEXT.md`](docs/CHAOS_PROJECT_CONTEXT.md) for the complete design rationale, the full Raft correctness reference, and the type definitions the implementation is built from.
-
-## Roadmap status
-
-- [x] Phase 1 — Raft fundamentals
-- [x] Phase 2 — Deterministic simulator + Raft implementation
-- [ ] Phase 3 — React/TypeScript visualization
-- [x] Phase 4 — Fault injection + correctness tests (random drop/duplicate, partition/heal, replay-determinism, property-based sweeps across 50 seeds × 200 rounds)
+Raft and the simulator are done and tested: leader election, log replication, commit index, plus fault injection and property-based tests that check Raft's safety properties continuously across many seeds and rounds, not just at the end of a run. The web visualization is still a work in progress.

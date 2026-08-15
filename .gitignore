@@ -31,9 +31,11 @@ web/.env*
 .claude/
 CLAUDE.md
 web/CLAUDE.md
+docs/
 
 # Editors/IDEs — personal, not shared
 .idea/
+.vscode/
 *.iml
 
 # OS

@@ -1,5 +1,8 @@
 # Chaos
 
+<img width="1535" height="773" alt="image" src="https://github.com/user-attachments/assets/bcfe93ef-1596-4615-bd80-0241e09b83f3" />
+
+
 Chaos is a Raft implementation written from scratch in Go, running on top of a deterministic network simulator instead of real sockets and real time. The simulator can drop messages, duplicate them, delay them, kill nodes, and partition the network, and because everything runs off a single seeded random number generator, any run can be replayed exactly.
 
 I built this to actually understand Raft, not just read the paper and nod along. Consensus bugs are almost always timing bugs, and timing bugs on a real network are nearly impossible to reproduce reliably. Running the whole cluster inside a simulator you control means you can hit the same bad interleaving of messages over and over until you actually understand why it broke, instead of hoping it happens again.

@@ -62,13 +62,3 @@ npm run dev
 Open the local URL it prints to watch a live cluster, or load a trace to step through a specific scenario.
 
 Nothing here is deployed anywhere. It's meant to run locally.
-
-## Tech stack
-
-- Go for the core: the Raft state machine, the simulator, the fault injection, the HTTP server. No external dependencies, just the standard library.
-- Next.js, React, and TypeScript for the web UI.
-- Server-sent events for streaming live cluster state to the frontend, nothing fancier than that.
-
-## Status
-
-Raft and the simulator are done and tested: leader election, log replication, commit index, plus fault injection and property-based tests that check Raft's safety properties continuously across many seeds and rounds, not just at the end of a run. The web visualization is still a work in progress.

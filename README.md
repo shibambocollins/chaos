@@ -1,3 +1,4 @@
+
 # Chaos
 
 <img width="1535" height="773" alt="image" src="https://github.com/user-attachments/assets/bcfe93ef-1596-4615-bd80-0241e09b83f3" />
@@ -62,3 +63,5 @@ npm run dev
 Open the local URL it prints to watch a live cluster, or load a trace to step through a specific scenario.
 
 Nothing here is deployed anywhere. It's meant to run locally.
+
+<img width="2244" height="693" alt="Chaos Architecture" src="https://github.com/user-attachments/assets/b4a56a0d-7f5d-4c0c-992d-4f5440facd65" />

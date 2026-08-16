@@ -6,8 +6,6 @@ func TestHandleRequestVoteReply_BecomesLeaderOnMajority(t *testing.T) {
 	n := NewNodeState(1, []int{2, 3, 4, 5})
 	rng := newRng()
 
-	// Legitimately enter candidacy the way it actually happens, so
-	// VotesReceived already has the self-vote counted.
 	n.handleElectionTimeout(rng)
 	if n.Role != Candidate {
 		t.Fatalf("setup: expected Candidate, got %v", n.Role)
@@ -27,7 +25,7 @@ func TestHandleRequestVoteReply_BecomesLeaderOnMajority(t *testing.T) {
 		t.Fatalf("expected still Candidate before majority, got %v", n.Role)
 	}
 
-	out := grant(3) // 3rd vote (self+2+3) reaches majority of 5
+	out := grant(3)
 	if n.Role != Leader {
 		t.Fatalf("expected Leader after majority, got %v", n.Role)
 	}
@@ -67,7 +65,7 @@ func TestHandleRequestVoteReply_IgnoresStaleTermReply(t *testing.T) {
 	n.VotesReceived = map[int]bool{1: true}
 
 	out := n.handleMessage(2, &RaftMessage{
-		Kind: MsgRequestVoteReply, Term: 2, VoteGranted: true, // older term
+		Kind: MsgRequestVoteReply, Term: 2, VoteGranted: true,
 	}, newRng())
 
 	if out != nil {
@@ -80,7 +78,7 @@ func TestHandleRequestVoteReply_IgnoresStaleTermReply(t *testing.T) {
 
 func TestHandleRequestVoteReply_IgnoresIfNoLongerCandidate(t *testing.T) {
 	n := NewNodeState(1, []int{2, 3})
-	n.Role = Follower // already reverted for some other reason
+	n.Role = Follower
 	n.CurrentTerm = 3
 
 	out := n.handleMessage(2, &RaftMessage{
@@ -103,8 +101,6 @@ func TestHandleRequestVoteReply_DuplicateVoteAfterLeadershipIsIgnored(t *testing
 		t.Fatalf("setup: expected Leader after majority of 3, got %v", n.Role)
 	}
 
-	// A duplicated/late copy of the same vote reply arrives after the
-	// node is already leader — must not panic or re-trigger becomeLeader.
 	out := n.handleMessage(2, &RaftMessage{Kind: MsgRequestVoteReply, Term: term, VoteGranted: true}, rng)
 	if out != nil {
 		t.Fatalf("expected nil for a duplicate vote reply after already leader, got %v", out)

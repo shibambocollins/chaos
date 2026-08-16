@@ -2,13 +2,6 @@ package twopc
 
 import "sort"
 
-// prepareTimeout is the coordinator's fixed "haven't heard from everyone"
-// timeout. Fixed, not randomized: Raft randomizes its election timeout to
-// stop multiple candidates from perpetually splitting a vote — a problem
-// that can't happen here, since there is exactly one coordinator with
-// authority to decide. That's also why NodeState.Step below takes no
-// *rand.Rand at all, unlike raft.NodeState.Step: nothing in this package
-// is a randomized choice.
 const prepareTimeout Time = 20
 
 // NewCoordinator constructs a Coordinator node overseeing participants.
@@ -55,7 +48,7 @@ func (n *NodeState) Step(ev Event) []Outbound {
 		return n.handleMessage(ev.From, ev.Message)
 	case EventTimerFire:
 		if ev.TimerGen != n.timerGen[ev.TimerKindField] {
-			return nil // stale — a reset happened after this was scheduled
+			return nil
 		}
 		return n.handleTimeout(ev.TimerKindField)
 	}
@@ -93,14 +86,11 @@ func (n *NodeState) Restart() []Outbound {
 			})
 		}
 		return out
-	default: // CoordinatorIdle
+	default:
 		return nil
 	}
 }
 
-// persistOutbound builds the OutPersist reflecting this node's current
-// persistent fields. Always emitted first, before any OutSendMessage,
-// whenever one of those fields changed.
 func (n *NodeState) persistOutbound() Outbound {
 	return Outbound{
 		Kind:                      OutPersist,

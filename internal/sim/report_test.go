@@ -48,8 +48,6 @@ func TestSafetyMonitor_ElectionSafetyCatchesTwoLeadersSameTerm(t *testing.T) {
 	s := NewSimulator(newThreeNodeCluster(), rand.New(rand.NewSource(1)))
 	monitor := NewSafetyMonitor(s)
 
-	// Force an impossible state directly: two nodes claiming Leader in the
-	// same term. This is exactly what Observe must catch.
 	s.nodes[1].Role = raft.Leader
 	s.nodes[1].CurrentTerm = 5
 	s.nodes[2].Role = raft.Leader

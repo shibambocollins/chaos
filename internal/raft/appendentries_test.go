@@ -55,7 +55,7 @@ func TestHandleAppendEntries_RejectsOnLogMismatch(t *testing.T) {
 
 	out := n.handleMessage(2, &RaftMessage{
 		Kind: MsgAppendEntries, Term: 3, LeaderID: 2,
-		PrevLogIndex: 1, PrevLogTerm: 2, // we have index 1 but at term 1, not 2
+		PrevLogIndex: 1, PrevLogTerm: 2,
 	}, newRng())
 
 	reply := replyOf(out)
@@ -101,8 +101,7 @@ func TestHandleAppendEntries_AppendsToEmptyLog(t *testing.T) {
 func TestHandleAppendEntries_TruncatesConflictingSuffix(t *testing.T) {
 	n := NewNodeState(1, []int{2, 3})
 	n.CurrentTerm = 3
-	// Follower has a stale entry at index 2 (term 1) that conflicts with
-	// what the (new-term) leader is now sending for that index.
+
 	n.Log = []LogEntry{{Index: 1, Term: 1}, {Index: 2, Term: 1}, {Index: 3, Term: 1}}
 
 	newEntry := LogEntry{Index: 2, Term: 3, Command: []byte("new")}
@@ -128,8 +127,6 @@ func TestHandleAppendEntries_SkipsAlreadyMatchingEntries(t *testing.T) {
 	n.CurrentTerm = 3
 	n.Log = []LogEntry{{Index: 1, Term: 1}, {Index: 2, Term: 1}}
 
-	// Leader resends an entry the follower already has, identical term —
-	// e.g. a duplicated heartbeat/replication message.
 	out := n.handleMessage(2, &RaftMessage{
 		Kind: MsgAppendEntries, Term: 3, LeaderID: 2,
 		PrevLogIndex: 0, PrevLogTerm: 0, Entries: []LogEntry{{Index: 1, Term: 1}},
@@ -183,8 +180,8 @@ func TestHandleAppendEntries_HigherTermPersistsEvenOnLogMismatch(t *testing.T) {
 	n.Log = []LogEntry{{Index: 1, Term: 1}}
 
 	out := n.handleMessage(2, &RaftMessage{
-		Kind: MsgAppendEntries, Term: 5, LeaderID: 2, // higher term
-		PrevLogIndex: 1, PrevLogTerm: 9, // mismatched
+		Kind: MsgAppendEntries, Term: 5, LeaderID: 2,
+		PrevLogIndex: 1, PrevLogTerm: 9,
 	}, newRng())
 
 	if n.CurrentTerm != 5 {

@@ -12,7 +12,7 @@ func TestTraceRecorder_CapturesTicksAndNarratesTransitions(t *testing.T) {
 	seedElectionTimers(s)
 
 	rec := NewTraceRecorder(s, "test-scenario")
-	rec.Observe() // baseline before anything runs
+	rec.Observe()
 
 	for i := 0; i < 4; i++ {
 		s.Step()
@@ -24,9 +24,7 @@ func TestTraceRecorder_CapturesTicksAndNarratesTransitions(t *testing.T) {
 	if trace.Meta.Scenario != "test-scenario" || trace.Meta.NodeCount != 3 {
 		t.Fatalf("expected meta {test-scenario, 3}, got %+v", trace.Meta)
 	}
-	// Only the baseline plus ticks that actually changed something get
-	// kept — not one entry per Step, which would be mostly redundant
-	// no-op frames (see Observe's doc comment).
+
 	if len(trace.Ticks) == 0 {
 		t.Fatalf("expected at least the baseline tick, got 0")
 	}
@@ -40,7 +38,7 @@ func TestTraceRecorder_CapturesTicksAndNarratesTransitions(t *testing.T) {
 	}
 	for i, tick := range trace.Ticks {
 		if i == 0 {
-			continue // baseline is kept unconditionally, even with no narration
+			continue
 		}
 		if len(tick.Narration) == 0 {
 			t.Fatalf("expected every non-baseline tick to carry narration (no-op ticks should be dropped), tick %d: %+v", i, tick)
@@ -116,9 +114,6 @@ func TestTraceRecorder_NarratesPartitionAndHeal(t *testing.T) {
 
 	trace := rec.Build()
 
-	// The very first tick after Partition should show every node's Group
-	// field distinguishing the two sides — this is the whole point of the
-	// field, so check it directly rather than only its narration.
 	afterPartition := trace.Ticks[1]
 	groups := make(map[int]int, len(afterPartition.Nodes))
 	for _, n := range afterPartition.Nodes {
@@ -149,8 +144,6 @@ func TestTraceRecorder_NarratesPartitionAndHeal(t *testing.T) {
 		t.Fatalf("expected 'node 1 reconnected to the rest of the cluster' narration, got %v", all)
 	}
 
-	// After Heal, every node's Group must read -1 — the sentinel "no
-	// active partition" value, not merely "same as everyone else's."
 	afterHeal := trace.Ticks[len(trace.Ticks)-1]
 	for _, n := range afterHeal.Nodes {
 		if n.Group != -1 {

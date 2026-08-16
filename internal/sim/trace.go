@@ -13,7 +13,7 @@ type TraceNodeState struct {
 	CurrentTerm uint64 `json:"currentTerm"`
 	LogLen      int    `json:"logLen"`
 	CommitIndex uint64 `json:"commitIndex"`
-	Group       int    `json:"group"` // see Simulator.Group: -1 means no active partition
+	Group       int    `json:"group"`
 }
 
 // TraceTick is one recorded moment in a run: every node's state, plus
@@ -103,9 +103,6 @@ func (r *TraceRecorder) Observe() {
 	r.ticks = append(r.ticks, TraceTick{At: uint64(r.s.now), Nodes: nodes, Narration: narration})
 }
 
-// diffNarration turns the difference between two consecutive observations
-// of the same node into human-readable lines, in a fixed priority order
-// (alive/dead first — it makes everything else about that node moot).
 func diffNarration(prev, cur TraceNodeState) []string {
 	var lines []string
 

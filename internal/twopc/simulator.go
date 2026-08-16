@@ -5,9 +5,6 @@ import (
 	"sort"
 )
 
-// eventQueue is a min-heap of scheduled events ordered by (At, Seq) — same
-// discipline as internal/sim's queue, and for the same reason: Seq is the
-// deterministic tiebreak for events sharing an At.
 type eventQueue []Event
 
 func (q eventQueue) Len() int { return len(q) }
@@ -31,10 +28,6 @@ func (q *eventQueue) Pop() any {
 	return ev
 }
 
-// messageLatency is a fixed simulated network delay. Fixed, not sampled:
-// this package has no *rand.Rand anywhere, since nothing in 2PC's logic is
-// a randomized choice (see node.go's prepareTimeout comment) — one less
-// thing for a demonstration of the blocking problem to have to control for.
 const messageLatency Time = 2
 
 // Simulator drives a set of 2PC NodeState instances through a single
@@ -44,15 +37,12 @@ const messageLatency Time = 2
 // from its simulator.
 type Simulator struct {
 	nodes   map[int]*NodeState
-	nodeIDs []int // sorted — never range nodes directly when iterating
+	nodeIDs []int
 
 	queue   eventQueue
 	nextSeq uint64
 	now     Time
 
-	// alive tracks whether each node is currently up. A killed node is
-	// simply excluded from delivery and scheduling, never sent an event —
-	// same "no heads-up" model as internal/sim.
 	alive map[int]bool
 }
 
@@ -127,10 +117,6 @@ func (s *Simulator) Step() bool {
 	return true
 }
 
-// applyOutbound turns everything a node's Step/Restart asked for into
-// simulator action, enforcing persist-before-respond at the boundary: an
-// OutSendMessage is never allowed to precede the OutPersist it depends on
-// within the same batch.
 func (s *Simulator) applyOutbound(nodeID int, node *NodeState, out []Outbound) {
 	sawSend := false
 	for _, ob := range out {
@@ -139,9 +125,7 @@ func (s *Simulator) applyOutbound(nodeID int, node *NodeState, out []Outbound) {
 			if sawSend {
 				panic("twopc: OutPersist arrived after OutSendMessage in the same batch")
 			}
-			// Modeled as an ordering guarantee, not real storage — same as
-			// internal/sim; the node's own fields already are the
-			// "persisted" state.
+
 		case OutSendMessage:
 			sawSend = true
 			s.Schedule(Event{
@@ -160,8 +144,7 @@ func (s *Simulator) applyOutbound(nodeID int, node *NodeState, out []Outbound) {
 				TimerGen:       node.TimerGeneration(ob.TimerKindField),
 			})
 		case OutApply:
-			// Nothing to record: node.ParticipantState already reflects
-			// the outcome, and callers can read it directly.
+
 		}
 	}
 }

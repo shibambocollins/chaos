@@ -25,10 +25,6 @@ func newThreeNodeCluster() map[int]*raft.NodeState {
 	return newCluster([]int{1, 2, 3})
 }
 
-// seedElectionTimers arms every node's first election timer at generation
-// 0, matching a freshly constructed NodeState's starting timerGen — the
-// caller-supplied kickoff every scenario test needs before anything else
-// can happen.
 func seedElectionTimers(s *Simulator) {
 	for _, id := range s.nodeIDs {
 		s.schedule(raft.Event{At: 0, NodeID: id, Kind: raft.EventTimerFire, TimerKindField: raft.TimerElection, TimerGen: 0})

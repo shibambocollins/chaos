@@ -175,7 +175,6 @@ func TestHandlers_StateReturnsCurrentSnapshot(t *testing.T) {
 	srv := httptest.NewServer(NewMux(hub))
 	defer srv.Close()
 
-	// Give Run's first publish() a moment to land.
 	time.Sleep(20 * time.Millisecond)
 
 	resp, err := http.Get(srv.URL + "/state")

@@ -9,8 +9,6 @@ func TestStep_StaleTimerGenerationIsIgnored(t *testing.T) {
 	n := NewNodeState(1, []int{2, 3})
 	rng := rand.New(rand.NewSource(1))
 
-	// Simulate a reset having already bumped the node's generation to 5.
-	// An event scheduled under an older generation (3) must be dropped.
 	n.timerGen[TimerElection] = 5
 
 	stale := Event{

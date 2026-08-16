@@ -4,7 +4,7 @@ import "testing"
 
 func TestHandleAppendEntriesReply_IgnoresStaleReply(t *testing.T) {
 	n := NewNodeState(1, []int{2, 3})
-	n.Role = Follower // not leader
+	n.Role = Follower
 	n.CurrentTerm = 3
 
 	out := n.handleMessage(2, &RaftMessage{
@@ -79,13 +79,10 @@ func TestHandleAppendEntriesReply_DoesNotCommitOlderTermEntryDirectly(t *testing
 	n := NewNodeState(1, []int{2, 3, 4, 5})
 	n.Role = Leader
 	n.CurrentTerm = 3
-	n.Log = []LogEntry{{Index: 1, Term: 1, Command: []byte("old")}} // entry from an OLDER term
+	n.Log = []LogEntry{{Index: 1, Term: 1, Command: []byte("old")}}
 	n.NextIndex = map[int]uint64{2: 2, 3: 2, 4: 2, 5: 2}
 	n.MatchIndex = map[int]uint64{2: 0, 3: 0, 4: 0, 5: 0}
 
-	// Two peers (a majority alongside self, 3 of 5) now report matching
-	// index 1 — but that entry is from term 1, not the leader's current
-	// term 3, so it must NOT be committed directly on this basis.
 	n.handleMessage(2, &RaftMessage{Kind: MsgAppendEntriesReply, Term: 3, Success: true, MatchIndex: 1}, newRng())
 	out := n.handleMessage(3, &RaftMessage{Kind: MsgAppendEntriesReply, Term: 3, Success: true, MatchIndex: 1}, newRng())
 
@@ -107,7 +104,7 @@ func TestHandleAppendEntriesReply_OlderEntryCommitsIndirectlyViaNewerEntry(t *te
 	n.CurrentTerm = 3
 	n.Log = []LogEntry{
 		{Index: 1, Term: 1, Command: []byte("old")},
-		{Index: 2, Term: 3, Command: []byte("new")}, // leader's own current-term entry
+		{Index: 2, Term: 3, Command: []byte("new")},
 	}
 	n.NextIndex = map[int]uint64{2: 3, 3: 3, 4: 3, 5: 3}
 	n.MatchIndex = map[int]uint64{2: 0, 3: 0, 4: 0, 5: 0}
@@ -135,10 +132,8 @@ func TestHandleAppendEntriesReply_MatchIndexNeverMovesBackward(t *testing.T) {
 	n.CurrentTerm = 1
 	n.Log = []LogEntry{{Index: 1, Term: 1}, {Index: 2, Term: 1}, {Index: 3, Term: 1}}
 	n.NextIndex = map[int]uint64{2: 4, 3: 4}
-	n.MatchIndex = map[int]uint64{2: 3, 3: 0} // peer 2 already confirmed up to index 3
+	n.MatchIndex = map[int]uint64{2: 3, 3: 0}
 
-	// A stale/reordered reply about an earlier request arrives after the
-	// fact, claiming only index 1 — must not drag MatchIndex backward.
 	n.handleMessage(2, &RaftMessage{Kind: MsgAppendEntriesReply, Term: 1, Success: true, MatchIndex: 1}, newRng())
 
 	if n.MatchIndex[2] != 3 {

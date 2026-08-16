@@ -46,16 +46,16 @@ func runRandomFaultScenario(t *testing.T, seed int64) {
 
 	for round := 0; round < 200; round++ {
 		switch actions.Intn(5) {
-		case 0: // kill a random alive node, only if a majority would still survive
+		case 0:
 			alive := aliveNodeIDs(s)
 			if len(alive) > len(ids)/2+1 {
 				s.Kill(alive[actions.Intn(len(alive))])
 			}
-		case 1: // restart a random dead node
+		case 1:
 			if dead := deadNodeIDs(s); len(dead) > 0 {
 				s.Restart(dead[actions.Intn(len(dead))])
 			}
-		case 2: // partition into two random groups
+		case 2:
 			perm := actions.Perm(len(ids))
 			split := 1 + actions.Intn(len(ids)-1)
 			var g1, g2 []int
@@ -67,9 +67,9 @@ func runRandomFaultScenario(t *testing.T, seed int64) {
 				}
 			}
 			s.Partition([][]int{g1, g2})
-		case 3: // heal
+		case 3:
 			s.Heal()
-		case 4: // client request to the current leader, if any
+		case 4:
 			if leader := s.Leader(); leader != nil {
 				cmdCounter++
 				s.schedule(raft.Event{At: s.now, NodeID: leader.ID, Kind: raft.EventClientRequest, Command: []byte(fmt.Sprintf("cmd-%d", cmdCounter))})
@@ -79,7 +79,6 @@ func runRandomFaultScenario(t *testing.T, seed int64) {
 		eventsProcessed += s.RunObserving(monitor, s.now+raft.Time(1+actions.Intn(10)))
 	}
 
-	// Let everything settle fully connected before the final checks.
 	s.Heal()
 	eventsProcessed += s.RunObserving(monitor, s.now+2000)
 

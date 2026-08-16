@@ -99,7 +99,7 @@ func TestHandleRequestVote_RejectsStaleLog(t *testing.T) {
 		Term:         5,
 		CandidateID:  2,
 		LastLogIndex: 1,
-		LastLogTerm:  4, // behind the voter's last log term (5)
+		LastLogTerm:  4,
 	}
 
 	out := n.handleMessage(2, msg, newRng())
@@ -125,7 +125,7 @@ func TestHandleRequestVote_RejectsStaleLog(t *testing.T) {
 func TestHandleRequestVote_RejectsSecondCandidateSameTerm(t *testing.T) {
 	n := NewNodeState(1, []int{2, 3})
 	n.CurrentTerm = 5
-	n.VotedFor = 2 // already voted for peer 2 this term
+	n.VotedFor = 2
 
 	msg := &RaftMessage{
 		Kind:         MsgRequestVote,
@@ -155,7 +155,7 @@ func TestHandleRequestVote_RejectsSecondCandidateSameTerm(t *testing.T) {
 func TestHandleRequestVote_IdempotentForSameCandidateSameTerm(t *testing.T) {
 	n := NewNodeState(1, []int{2, 3})
 	n.CurrentTerm = 5
-	n.VotedFor = 2 // already voted for this exact candidate
+	n.VotedFor = 2
 
 	msg := &RaftMessage{
 		Kind:         MsgRequestVote,

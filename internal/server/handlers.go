@@ -43,8 +43,6 @@ func nodeIDFromPath(r *http.Request) (int, error) {
 	return strconv.Atoi(r.PathValue("id"))
 }
 
-// handleState serves the most recently published snapshot as a one-shot
-// GET — a plain poll or a curl check, no event-stream client required.
 func handleState(hub *Hub) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		data := hub.Snapshot()
@@ -81,9 +79,6 @@ func handleRestart(hub *Hub) http.HandlerFunc {
 	}
 }
 
-// handleFavor is the honest substitute for "make this node the leader": it
-// takes just enough of the target's rivals offline, temporarily, that it
-// only has to out-race the rest for the next election. See Hub.startFavor.
 func handleFavor(hub *Hub) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, err := nodeIDFromPath(r)
@@ -135,9 +130,6 @@ func handleClientRequest(hub *Hub) http.HandlerFunc {
 	}
 }
 
-// handleStream serves a live text/event-stream of sim.Report snapshots,
-// one "data: <json>\n\n" line per change, for as long as the client stays
-// connected. This is what lets the browser watch the cluster live.
 func handleStream(hub *Hub) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		flusher, ok := w.(http.Flusher)

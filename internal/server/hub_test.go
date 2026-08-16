@@ -15,8 +15,6 @@ func newTestHub(t *testing.T) *Hub {
 	return newTestHubN(t, 3, 300*time.Millisecond)
 }
 
-// newTestHubN builds an n-node cluster (IDs 1..n) behind a fresh Hub and
-// starts Run in the background.
 func newTestHubN(t *testing.T, n int, favorDeadline time.Duration) *Hub {
 	t.Helper()
 	ids := make([]int, n)
@@ -44,12 +42,6 @@ func newTestHubN(t *testing.T, n int, favorDeadline time.Duration) *Hub {
 	return hub
 }
 
-// readUntil reads snapshots from ch until cond reports true, or fails the
-// test after timeout. Tests can't safely read the Hub's Simulator directly
-// while Run's goroutine owns it — reading through the channel is the same
-// path a real client uses, which is the point: it proves the Hub's
-// concurrency story actually works, not just that the underlying Simulator
-// logic does (already proven exhaustively in internal/sim's own tests).
 func readUntil(t *testing.T, ch chan []byte, timeout time.Duration, cond func(sim.Report) bool) sim.Report {
 	t.Helper()
 	deadline := time.After(timeout)
@@ -117,8 +109,6 @@ func TestHub_ClientRequestEventuallyApplied(t *testing.T) {
 	ch := hub.Subscribe()
 	defer hub.Unsubscribe(ch)
 
-	// Wait for a leader to emerge from the natural election timers first —
-	// no leader means the client request has nowhere to go.
 	readUntil(t, ch, 5*time.Second, hasLeader)
 
 	hub.submit(action{kind: actionClientRequest, command: []byte("x=1")})
@@ -141,9 +131,7 @@ func TestHub_PartitionAndHeal(t *testing.T) {
 	readUntil(t, ch, 5*time.Second, hasLeader)
 
 	hub.submit(action{kind: actionPartition, groups: [][]int{{1}, {2, 3}}})
-	// No direct observable signal from partitioning alone in this snapshot
-	// shape beyond it not crashing — Heal should still bring everything
-	// back to a single, functioning cluster afterward.
+
 	hub.submit(action{kind: actionHeal})
 
 	hub.submit(action{kind: actionClientRequest, command: []byte("after-heal")})
@@ -218,10 +206,8 @@ func TestHub_FavorShrinksTheRacingFieldToQuorum(t *testing.T) {
 		t.Fatalf("favor downed its own target: %+v", r.Nodes)
 	}
 
-	// Someone among the surviving three (not necessarily node 4) wins.
 	readUntil(t, ch, 3*time.Second, hasLeader)
 
-	// The favor should have resolved itself: both downed rivals restored.
 	readUntil(t, ch, 2*time.Second, func(r sim.Report) bool {
 		alive := 0
 		for _, n := range r.Nodes {
@@ -271,7 +257,6 @@ func TestHub_FavorGivesUpAndRestoresIfTargetIsAlreadyDead(t *testing.T) {
 
 	hub.submit(action{kind: actionFavor, nodeID: 4})
 
-	// Every other node should stay alive throughout — nothing to favor.
 	readUntil(t, ch, 1*time.Second, func(r sim.Report) bool {
 		for _, id := range []int{1, 2, 3, 5} {
 			if !nodeAlive(r, id) {

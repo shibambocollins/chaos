@@ -72,7 +72,7 @@ func runAbort() {
 	nodes := map[int]*twopc.NodeState{
 		1: twopc.NewCoordinator(1, []int{2, 3}),
 		2: twopc.NewParticipant(2, 1, false),
-		3: twopc.NewParticipant(3, 1, true), // always votes Abort
+		3: twopc.NewParticipant(3, 1, true),
 	}
 	s := twopc.NewSimulator(nodes)
 	s.Schedule(twopc.Event{At: 0, NodeID: 1, Kind: twopc.EventClientRequest, Command: []byte("txn-abort")})
@@ -92,11 +92,6 @@ func runCrash() {
 	s := buildCluster()
 	s.Schedule(twopc.Event{At: 0, NodeID: 1, Kind: twopc.EventClientRequest, Command: []byte("txn-42")})
 
-	// Step through by hand to land exactly between the two vote replies
-	// arriving at the coordinator: 1) Prepare sent to both participants;
-	// 2) participant 2 votes Commit, enters Prepared; 3) participant 3
-	// votes Commit, enters Prepared; 4) participant 2's vote reply reaches
-	// the coordinator (still awaiting participant 3's).
 	for i := 0; i < 4; i++ {
 		s.Step()
 	}

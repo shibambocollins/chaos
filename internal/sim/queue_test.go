@@ -13,7 +13,7 @@ func TestEventQueue_OrdersByAtThenSeq(t *testing.T) {
 
 	heap.Push(q, raft.Event{At: 5, Seq: 1, NodeID: 100})
 	heap.Push(q, raft.Event{At: 2, Seq: 2, NodeID: 200})
-	heap.Push(q, raft.Event{At: 2, Seq: 0, NodeID: 300}) // same At as above, lower Seq — must come first
+	heap.Push(q, raft.Event{At: 2, Seq: 0, NodeID: 300})
 	heap.Push(q, raft.Event{At: 5, Seq: 0, NodeID: 400})
 
 	want := []int{300, 200, 400, 100}

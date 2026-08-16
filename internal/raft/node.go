@@ -62,29 +62,21 @@ func (r *Role) UnmarshalJSON(data []byte) error {
 // else is rebuilt on recovery.
 type NodeState struct {
 	ID    int
-	Peers []int // sorted, excludes ID — never range a map of peers when sending RPCs
+	Peers []int
 
-	// Persistent state — must be durably saved (OutPersist) before any
-	// Outbound that depends on it is allowed to be sent.
 	CurrentTerm uint64
-	VotedFor    int // -1 means "no vote cast this term"
+	VotedFor    int
 	Log         []LogEntry
 
-	// Volatile state — all roles.
 	Role        Role
 	CommitIndex uint64
 	LastApplied uint64
 
-	// Volatile state — leader only. Reset whenever the node becomes leader.
 	NextIndex  map[int]uint64
 	MatchIndex map[int]uint64
 
-	// Volatile state — candidate only. Reset whenever the node starts an election.
 	VotesReceived map[int]bool
 
-	// timerGen holds the current generation for each TimerKind. Bumped on
-	// every legitimate reset; a fired EventTimerFire carrying an older
-	// generation is stale and must be ignored.
 	timerGen [2]uint64
 }
 
@@ -147,7 +139,7 @@ func (n *NodeState) Step(ev Event, rng *rand.Rand) []Outbound {
 		return n.handleMessage(ev.From, ev.Message, rng)
 	case EventTimerFire:
 		if ev.TimerGen != n.timerGen[ev.TimerKindField] {
-			return nil // stale — a reset happened after this was scheduled
+			return nil
 		}
 		return n.handleTimeout(ev.TimerKindField, rng)
 	case EventClientRequest:

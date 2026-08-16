@@ -4,17 +4,6 @@ import { useMemo } from "react";
 import type { TracePlayback } from "@/hooks/useTracePlayback";
 import { translate, TONE_COLOR } from "@/lib/plainEnglish";
 
-// This replaced a media transport: round glyph buttons and a drag-to-seek
-// slider, which is the vocabulary of a music player and told you nothing
-// about what you were moving through.
-//
-// A replay is not audio. It is a finite list of discrete moments, most of
-// which are the cluster quietly heartbeating and a handful of which are
-// the whole story. So the control is a step control (labelled Back /
-// Step, because you move one recorded moment at a time) over an event
-// track: one cell per frame, coloured where something happened. You can
-// see the shape of the run before you move through it, and click straight
-// to the interesting part instead of hunting with a scrub handle.
 export default function SimulationControl({ playback }: { playback: TracePlayback }) {
   const {
     trace, index, maxIndex, playing,
@@ -82,10 +71,6 @@ export default function SimulationControl({ playback }: { playback: TracePlaybac
                 aria-label={`Go to moment ${i + 1}`}
                 aria-current={current}
                 style={{
-                  // The cell keeps its own event colour when it is the
-                  // current one; the position is marked with a dark
-                  // outline instead. Recolouring it would collide with
-                  // the blue that already means "saved for good".
                   flex: 1, minWidth: 2, padding: 0, cursor: "pointer",
                   background: c.color ?? "#e6e3dd",
                   border: "1px solid transparent",

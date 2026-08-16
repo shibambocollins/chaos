@@ -58,7 +58,7 @@ func (m *SafetyMonitor) Observe() {
 		n := m.s.nodes[id]
 
 		if n.Role != raft.Leader {
-			delete(m.lastLeaderLog, id) // tenure ended; next leadership starts a fresh baseline
+			delete(m.lastLeaderLog, id)
 			continue
 		}
 
@@ -105,8 +105,6 @@ func (m *SafetyMonitor) CheckFinal() {
 	m.checkLeaderCompleteness()
 }
 
-// checkLogMatching verifies, across every pair of nodes, that wherever two
-// logs share an (index, term), the command at that index is identical.
 func (m *SafetyMonitor) checkLogMatching() {
 	for i, a := range m.s.nodeIDs {
 		for _, b := range m.s.nodeIDs[i+1:] {
@@ -124,9 +122,6 @@ func (m *SafetyMonitor) checkLogMatching() {
 	}
 }
 
-// checkLeaderCompleteness verifies the final leader's log (if any) still
-// contains every entry that was ever applied anywhere — applying only
-// happens post-commit, so "ever applied" is a safe stand-in for "committed."
 func (m *SafetyMonitor) checkLeaderCompleteness() {
 	leader := m.s.Leader()
 	if leader == nil {
@@ -158,7 +153,7 @@ type NodeSummary struct {
 	LogLen       int
 	CommitIndex  uint64
 	AppliedCount int
-	Group        int // see Simulator.Group: -1 means no active partition
+	Group        int
 }
 
 // Report summarizes one completed simulation run: final per-node state,

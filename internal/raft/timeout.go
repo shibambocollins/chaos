@@ -39,7 +39,7 @@ func (n *NodeState) handleTimeout(kind TimerKind, rng *rand.Rand) []Outbound {
 // meaningful for a Follower or Candidate. Starts a new election.
 func (n *NodeState) handleElectionTimeout(rng *rand.Rand) []Outbound {
 	if n.Role == Leader {
-		return nil // leaders don't run this timer; ignore defensively
+		return nil
 	}
 
 	n.CurrentTerm++
@@ -50,8 +50,6 @@ func (n *NodeState) handleElectionTimeout(rng *rand.Rand) []Outbound {
 	n.timerGen[TimerElection]++
 	timeout := sampleElectionTimeout(rng)
 
-	// OutPersist first — CurrentTerm/VotedFor changed and must be durable
-	// before the RequestVote sends below are allowed to go out.
 	out := []Outbound{
 		{
 			Kind:              OutPersist,
@@ -88,7 +86,7 @@ func (n *NodeState) handleElectionTimeout(rng *rand.Rand) []Outbound {
 // catch-up on failure is Module 4's concern) to every peer.
 func (n *NodeState) handleHeartbeatTimeout() []Outbound {
 	if n.Role != Leader {
-		return nil // only leaders run this timer; ignore defensively
+		return nil
 	}
 
 	n.timerGen[TimerHeartbeat]++

@@ -32,7 +32,7 @@ func TestSimulator_HappyPathAllCommit(t *testing.T) {
 }
 
 func TestSimulator_AbortPathWhenAnyParticipantVotesAbort(t *testing.T) {
-	s := newClusterWithAbort(3) // node 3 always votes Abort
+	s := newClusterWithAbort(3)
 	s.Schedule(Event{At: 0, NodeID: 1, Kind: EventClientRequest, Command: []byte("txn")})
 
 	s.Run(100)
@@ -49,10 +49,10 @@ func TestSimulator_AbortPathWhenAnyParticipantVotesAbort(t *testing.T) {
 
 func TestSimulator_PrepareTimeoutAbortsWhenAParticipantNeverResponds(t *testing.T) {
 	s := newClusterWithAbort()
-	s.Kill(3) // node 3 never receives its Prepare, never votes
+	s.Kill(3)
 
 	s.Schedule(Event{At: 0, NodeID: 1, Kind: EventClientRequest, Command: []byte("txn")})
-	s.Run(100) // well past prepareTimeout
+	s.Run(100)
 
 	if got := s.Node(1).Decision; got != DecisionAbort {
 		t.Fatalf("coordinator: expected DecisionAbort after prepareTimeout with a missing vote, got %v", got)
@@ -75,12 +75,6 @@ func TestSimulator_CoordinatorCrashBlocksBothPreparedParticipantsUntilRestart(t 
 	s := newClusterWithAbort()
 	s.Schedule(Event{At: 0, NodeID: 1, Kind: EventClientRequest, Command: []byte("txn")})
 
-	// Step through by hand to land exactly between the two vote replies
-	// arriving at the coordinator, rather than relying on Run(until) and a
-	// tick guess: 1) EventClientRequest -> Prepare sent to 2 and 3;
-	// 2) Prepare arrives at 2 -> votes Commit, enters Prepared;
-	// 3) Prepare arrives at 3 -> votes Commit, enters Prepared;
-	// 4) node 2's VoteReply arrives at the coordinator (still waiting on 3).
 	for i := 0; i < 4; i++ {
 		if !s.Step() {
 			t.Fatalf("setup: queue emptied after only %d of 4 expected events", i)
@@ -96,13 +90,8 @@ func TestSimulator_CoordinatorCrashBlocksBothPreparedParticipantsUntilRestart(t 
 		t.Fatalf("setup: expected coordinator still WaitingForVotes, got %v", got)
 	}
 
-	// Crash now: node 3's still-in-flight VoteReply, and the eventual
-	// TimerPrepare fire, will both be silently dropped on delivery — the
-	// coordinator is not there to receive them.
 	s.Kill(1)
 
-	// Run far past every timeout that would ever have fired had the
-	// coordinator been alive. Nothing resolves — that's the point.
 	s.Run(100_000)
 
 	for _, id := range []int{2, 3} {
@@ -111,9 +100,6 @@ func TestSimulator_CoordinatorCrashBlocksBothPreparedParticipantsUntilRestart(t 
 		}
 	}
 
-	// Restart: the coordinator lost its in-memory vote tally, so it
-	// defaults to Abort — the one safe choice, since nothing was ever told
-	// Commit. That broadcast is what finally unblocks both participants.
 	s.Restart(1)
 	s.Run(s.Now() + messageLatency + 5)
 

@@ -4,8 +4,6 @@ package raft
 // simulator's event loop.
 type Time uint64
 
-// ---------- Raft message payloads ----------
-
 type MessageKind int
 
 const (
@@ -18,44 +16,32 @@ const (
 type LogEntry struct {
 	Term    uint64
 	Index   uint64
-	Command []byte // opaque application payload — Chaos doesn't need to interpret it
+	Command []byte
 }
 
 type RaftMessage struct {
 	Kind MessageKind
-	Term uint64 // present on every message — lets a handler check "is this stale relative to my term?" uniformly, before even looking at the specific payload
+	Term uint64
 
-	// RequestVote
 	CandidateID  int
 	LastLogIndex uint64
 	LastLogTerm  uint64
 
-	// RequestVoteReply
 	VoteGranted bool
 
-	// AppendEntries
 	LeaderID     int
 	PrevLogIndex uint64
 	PrevLogTerm  uint64
 	Entries      []LogEntry
 	LeaderCommit uint64
 
-	// AppendEntriesReply
 	Success bool
-	// MatchIndex is the follower's log index after a successful append —
-	// PrevLogIndex + len(Entries) at the time of the original request.
-	// Without this, a leader can't tell which request a given reply
-	// belongs to, and a stale/duplicated/reordered reply could drag
-	// MatchIndex backward. Only meaningful when Success is true.
+
 	MatchIndex uint64
-	// Fast backtracking — OPTIONAL, an efficiency optimization, not a
-	// correctness requirement. Implement only after the naive
-	// one-entry-at-a-time nextIndex backoff already works and is tested.
+
 	ConflictIndex uint64
 	ConflictTerm  uint64
 }
-
-// ---------- Events (input to a node's Step) ----------
 
 type EventKind int
 
@@ -68,30 +54,25 @@ const (
 type TimerKind int
 
 const (
-	TimerElection  TimerKind = iota // followers & candidates: "no leader heard from in time"
-	TimerHeartbeat                  // leaders only: "time to prove I'm still alive"
+	TimerElection TimerKind = iota
+	TimerHeartbeat
 )
 
 type Event struct {
 	At     Time
-	Seq    uint64 // deterministic tiebreak for equal At — assigned by the simulator at scheduling time
-	NodeID int    // which node's Step() receives this event
+	Seq    uint64
+	NodeID int
 
 	Kind EventKind
 
-	// EventMessageArrival
 	From    int
 	Message *RaftMessage
 
-	// EventTimerFire
 	TimerKindField TimerKind
-	TimerGen       uint64 // must match the node's current generation for this timer kind, or it's stale
+	TimerGen       uint64
 
-	// EventClientRequest
 	Command []byte
 }
-
-// ---------- Outbound (what a node's Step wants the simulator to do) ----------
 
 type OutboundKind int
 
@@ -105,24 +86,16 @@ const (
 type Outbound struct {
 	Kind OutboundKind
 
-	// OutSendMessage
 	To      int
 	Message *RaftMessage
 
-	// OutResetTimer — simulator adds Duration to "now" and assigns the
-	// resulting event the node's NEW generation for that timer kind.
 	TimerKindField TimerKind
 	Duration       Time
 
-	// OutPersist — signals that CurrentTerm/VotedFor/Log changed and MUST
-	// be durably saved before any OutSendMessage in this same batch is
-	// actually delivered. Modeled as an ordering guarantee the simulator
-	// enforces, not real disk I/O.
 	PersistedTerm     uint64
 	PersistedVotedFor int
 	PersistedLogLen   int
 
-	// OutApply — entry has passed CommitIndex; hand it to the state machine.
 	ApplyIndex   uint64
 	ApplyCommand []byte
 }

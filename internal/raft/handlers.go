@@ -3,11 +3,7 @@ package raft
 import "math/rand"
 
 func (n *NodeState) handleMessage(from int, msg *RaftMessage, rng *rand.Rand) []Outbound {
-	// Universal term check (§7, step 1) — applies before any kind-specific
-	// logic, for every message kind, including a stale leader's own
-	// heartbeat. Seeing a higher term always means stepping down. This is
-	// itself a persistent-state change, so it must be persisted even if
-	// the kind-specific handling below doesn't grant/accept anything.
+
 	steppedDown := false
 	if msg.Term > n.CurrentTerm {
 		n.CurrentTerm = msg.Term
@@ -68,8 +64,6 @@ func (n *NodeState) handleRequestVote(from int, msg *RaftMessage, rng *rand.Rand
 
 	var out []Outbound
 
-	// OutPersist first, always, whenever CurrentTerm or VotedFor changed —
-	// before the OutSendMessage below that depends on it.
 	if mustPersist {
 		out = append(out, n.persistOutbound())
 	}
@@ -162,7 +156,7 @@ func (n *NodeState) becomeLeader() []Outbound {
 // here if the log also changes, rather than persisting twice.
 func (n *NodeState) handleAppendEntries(from int, msg *RaftMessage, rng *rand.Rand, mustPersist bool) []Outbound {
 	if msg.Term < n.CurrentTerm {
-		// Stale leader — reject without touching timers or the log.
+
 		return []Outbound{{
 			Kind: OutSendMessage,
 			To:   from,
@@ -172,9 +166,6 @@ func (n *NodeState) handleAppendEntries(from int, msg *RaftMessage, rng *rand.Ra
 		}}
 	}
 
-	// A legitimate leader for this term. Recognize it — this is also how
-	// a Candidate concedes an election it didn't win, without needing a
-	// strictly higher term to do so.
 	n.Role = Follower
 
 	n.timerGen[TimerElection]++
@@ -207,9 +198,9 @@ func (n *NodeState) handleAppendEntries(from int, msg *RaftMessage, rng *rand.Ra
 		idx := msg.PrevLogIndex + uint64(i) + 1
 		if idx <= uint64(len(n.Log)) {
 			if n.Log[idx-1].Term == entry.Term {
-				continue // already present and matches — nothing to do
+				continue
 			}
-			n.Log = n.Log[:idx-1] // conflicting suffix — truncate (a follower-only operation; leaders never do this)
+			n.Log = n.Log[:idx-1]
 			logChanged = true
 		}
 		n.Log = append(n.Log, entry)
@@ -245,7 +236,7 @@ func (n *NodeState) applyCommittedEntries() []Outbound {
 	var out []Outbound
 	for n.LastApplied < n.CommitIndex {
 		n.LastApplied++
-		entry := n.Log[n.LastApplied-1] // indices are 1-based and contiguous
+		entry := n.Log[n.LastApplied-1]
 		out = append(out, Outbound{
 			Kind:         OutApply,
 			ApplyIndex:   entry.Index,
@@ -271,35 +262,26 @@ func (n *NodeState) handleAppendEntriesReply(from int, msg *RaftMessage, mustPer
 	}
 
 	if !msg.Success {
-		// Naive one-entry-at-a-time backoff — fast backtrack via
-		// ConflictIndex/ConflictTerm is the optional follow-up, not this.
+
 		if n.NextIndex[from] > 1 {
 			n.NextIndex[from]--
 		}
-		// No immediate retry here: the next periodic heartbeat already
-		// resends AppendEntries from the (now backed-off) NextIndex[from].
+
 		return nil
 	}
 
-	// MatchIndex only ever moves forward — a stale/duplicated/reordered
-	// reply about an earlier request must never drag it backward.
 	if msg.MatchIndex > n.MatchIndex[from] {
 		n.MatchIndex[from] = msg.MatchIndex
 	}
 	n.NextIndex[from] = n.MatchIndex[from] + 1
 
-	// Gotcha #2: a leader may only advance CommitIndex off a majority
-	// count for entries from its OWN CURRENT term — never an older term,
-	// even if a majority now happens to have a copy. Older entries only
-	// become committed indirectly, as a side effect of a later
-	// current-term entry committing over them.
 	newCommitIndex := n.CommitIndex
 	lastIndex, _ := n.lastLogIndexAndTerm()
 	for N := lastIndex; N > n.CommitIndex; N-- {
 		if n.Log[N-1].Term != n.CurrentTerm {
 			continue
 		}
-		matches := 1 // the leader's own log always matches itself
+		matches := 1
 		for _, peer := range n.Peers {
 			if n.MatchIndex[peer] >= N {
 				matches++

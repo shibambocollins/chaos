@@ -15,7 +15,7 @@ import (
 // through to every node.Step call.
 type Simulator struct {
 	nodes   map[int]*raft.NodeState
-	nodeIDs []int // sorted — never range nodes directly when iterating
+	nodeIDs []int
 
 	queue   eventQueue
 	nextSeq uint64
@@ -23,26 +23,12 @@ type Simulator struct {
 
 	rng *rand.Rand
 
-	// alive tracks whether each node is currently up. A killed node is
-	// simply excluded from delivery and scheduling, never sent an event —
-	// per context doc §4, a real crashed process doesn't get a heads-up
-	// either, so neither does a simulated one.
 	alive map[int]bool
 
-	// groupOf assigns each node a partition group when a partition is
-	// active; nodes in different groups can't reach each other. nil means
-	// no partition — everyone connected. Set by Partition, cleared by Heal.
 	groupOf map[int]int
 
-	// faults holds the current random drop/duplicate rates. Zero value
-	// (both 0) means no faults — existing tests built before this existed
-	// are unaffected.
 	faults FaultConfig
 
-	// persisted/applied record what each node's OutPersist/OutApply
-	// outbounds reported. Modeled as an ordering guarantee the simulator
-	// enforces (OutPersist before any OutSendMessage in the same batch),
-	// not real disk I/O — see context doc's persist-before-respond note.
 	persisted map[int]persistedState
 	applied   map[int][]appliedEntry
 }
@@ -88,8 +74,6 @@ func NewSimulator(nodes map[int]*raft.NodeState, rng *rand.Rand) *Simulator {
 	}
 }
 
-// schedule assigns ev the next Seq (the deterministic tiebreak for events
-// sharing an At) and pushes it onto the queue.
 func (s *Simulator) schedule(ev raft.Event) {
 	ev.Seq = s.nextSeq
 	s.nextSeq++
@@ -159,8 +143,6 @@ func (s *Simulator) Heal() {
 	s.groupOf = nil
 }
 
-// connected reports whether a and b can currently exchange messages — true
-// unless a partition is active and put them in different groups.
 func (s *Simulator) connected(a, b int) bool {
 	if s.groupOf == nil {
 		return true
@@ -241,9 +223,7 @@ func (s *Simulator) Step() bool {
 	s.now = ev.At
 
 	if !s.alive[ev.NodeID] {
-		// A dead node is simply never delivered to — no "you're dead"
-		// event, per context doc §4: a real crashed process doesn't get
-		// a heads-up either.
+
 		return true
 	}
 
@@ -252,13 +232,6 @@ func (s *Simulator) Step() bool {
 	return true
 }
 
-// applyOutbound turns everything a node's Step() asked for into simulator
-// action: persisting, scheduling message delivery, scheduling the next
-// timer fire, and recording applied entries.
-//
-// It also enforces the persist-before-respond rule at the boundary rather
-// than trusting handler code blindly: an OutSendMessage is never allowed to
-// precede the OutPersist it depends on within the same batch.
 func (s *Simulator) applyOutbound(nodeID int, node *raft.NodeState, out []raft.Outbound) {
 	sawSend := false
 	for _, ob := range out {

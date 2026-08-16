@@ -24,8 +24,6 @@ func TestSimulator_PartitionMajorityCommitsMinorityStallsThenHeals(t *testing.T)
 		t.Fatalf("expected an initial leader to be elected")
 	}
 
-	// Build a 3-node majority containing the leader and a 2-node minority
-	// from whoever's left, regardless of which node actually won.
 	minority := make([]int, 0, 2)
 	majority := make([]int, 0, 3)
 	majority = append(majority, leader.ID)

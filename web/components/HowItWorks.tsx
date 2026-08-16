@@ -3,14 +3,6 @@
 import { useEffect } from "react";
 import { SCENARIOS } from "@/lib/loadTrace";
 
-// The scenario blurb used to sit permanently on screen above the
-// workspace, which meant every visitor read a paragraph of explanation
-// before they could see anything. Someone who already knows what a
-// partition is does not want that text parked in their view on every
-// visit; someone who does not want it needs more than one sentence, not
-// less. So it moved here: an on-demand reference, opened by choice, that
-// can afford to go into actual depth glossary-style, and closed by
-// default gets the workspace back for everyone else.
 export default function HowItWorks({ open, onClose }: { open: boolean; onClose: () => void }) {
   useEffect(() => {
     if (!open) return;

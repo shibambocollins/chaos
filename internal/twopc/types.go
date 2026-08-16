@@ -11,14 +11,12 @@ package twopc
 // type, not shared with internal/raft: twopc is intentionally standalone.
 type Time uint64
 
-// ---------- Messages ----------
-
 type MessageKind int
 
 const (
-	MsgPrepare   MessageKind = iota // Coordinator -> Participant: Phase 1 begin
-	MsgVoteReply                    // Participant -> Coordinator: this participant's vote
-	MsgDecision                     // Coordinator -> Participant: Phase 2, the final outcome
+	MsgPrepare MessageKind = iota
+	MsgVoteReply
+	MsgDecision
 )
 
 type Vote int
@@ -65,14 +63,12 @@ func (d Decision) String() string {
 type Message struct {
 	Kind MessageKind
 
-	Command []byte // MsgPrepare: the transaction's payload
+	Command []byte
 
-	Vote Vote // MsgVoteReply
+	Vote Vote
 
-	Decision Decision // MsgDecision
+	Decision Decision
 }
-
-// ---------- Node roles and per-role state machines ----------
 
 type Role int
 
@@ -89,8 +85,8 @@ const (
 type ParticipantState int
 
 const (
-	ParticipantIdle     ParticipantState = iota // no transaction in flight
-	ParticipantPrepared                         // voted Commit; blocked until a Decision arrives
+	ParticipantIdle ParticipantState = iota
+	ParticipantPrepared
 	ParticipantCommitted
 	ParticipantAborted
 )
@@ -136,8 +132,6 @@ func (c CoordinatorState) String() string {
 	}
 }
 
-// ---------- NodeState ----------
-
 // NodeState is a single 2PC node's complete state — either a Coordinator or
 // a Participant, per Role. Fields are grouped by the persistent/volatile
 // split, same discipline as internal/raft.NodeState: everything under
@@ -145,71 +139,51 @@ func (c CoordinatorState) String() string {
 // depends on it is sent, and must come back unchanged across a Restart.
 type NodeState struct {
 	ID    int
-	Peers []int // sorted, excludes ID — Coordinator's Peers are the participants; a Participant's Peers is just [coordinatorID]
+	Peers []int
 
 	Role Role
 
-	// AlwaysAbort is a Participant-only test/demo knob, not part of the
-	// protocol itself: forces this participant to vote Abort on every
-	// transaction, for exercising the abort path deliberately.
 	AlwaysAbort bool
 
-	// Persistent state.
-	ParticipantState ParticipantState // Participant only
-	CoordinatorState CoordinatorState // Coordinator only
-	Decision         Decision         // Coordinator only; meaningful once CoordinatorState == Decided
-	Command          []byte           // the transaction's payload, once known to this node
+	ParticipantState ParticipantState
+	CoordinatorState CoordinatorState
+	Decision         Decision
+	Command          []byte
 
-	// Volatile state — Coordinator only. Never consulted after a Restart:
-	// a coordinator that comes back mid-vote-collection has lost this and
-	// must fall back to the safe default (abort), not try to resume
-	// collecting votes from where it left off.
 	VotesReceived map[int]Vote
 
-	// timerGen holds the current generation for each TimerKind — same
-	// stale-timer-cancellation discipline as internal/raft.
 	timerGen [1]uint64
 }
-
-// ---------- Events (input to a node's Step) ----------
 
 type EventKind int
 
 const (
 	EventMessageArrival EventKind = iota
 	EventTimerFire
-	EventClientRequest // Coordinator only: begin a new transaction
+	EventClientRequest
 )
 
 type TimerKind int
 
 const (
-	// TimerPrepare is the coordinator-only "haven't heard from everyone in
-	// time" timeout. There is no participant-side equivalent — that
-	// absence is the entire point of this package.
 	TimerPrepare TimerKind = iota
 )
 
 type Event struct {
 	At     Time
-	Seq    uint64 // deterministic tiebreak for equal At, assigned by the simulator at scheduling time
+	Seq    uint64
 	NodeID int
 
 	Kind EventKind
 
-	// EventMessageArrival
 	From    int
 	Message *Message
 
-	// EventTimerFire
 	TimerKindField TimerKind
 	TimerGen       uint64
 
-	// EventClientRequest
 	Command []byte
 }
-
-// ---------- Outbound (what a node's Step wants the simulator to do) ----------
 
 type OutboundKind int
 
@@ -217,28 +191,23 @@ const (
 	OutSendMessage OutboundKind = iota
 	OutResetTimer
 	OutPersist
-	OutApply // signals this node's final local outcome for the transaction
+	OutApply
 )
 
 type Outbound struct {
 	Kind OutboundKind
 
-	// OutSendMessage
 	To      int
 	Message *Message
 
-	// OutResetTimer
 	TimerKindField TimerKind
 	Duration       Time
 
-	// OutPersist — mirrors the node's persistent fields exactly, after
-	// whatever change this batch made.
 	PersistedParticipantState ParticipantState
 	PersistedCoordinatorState CoordinatorState
 	PersistedDecision         Decision
 	PersistedCommand          []byte
 
-	// OutApply
 	ApplyCommitted bool
 	ApplyCommand   []byte
 }

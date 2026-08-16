@@ -4,7 +4,7 @@ package twopc
 // Participant never initiates one.
 func (n *NodeState) handleClientRequest(cmd []byte) []Outbound {
 	if n.Role != Coordinator || n.CoordinatorState != CoordinatorIdle {
-		return nil // not a coordinator, or one already mid-transaction — ignore
+		return nil
 	}
 
 	n.CoordinatorState = WaitingForVotes
@@ -45,7 +45,7 @@ func (n *NodeState) handleMessage(from int, msg *Message) []Outbound {
 // outcome will be Abort, so there is nothing to wait for.
 func (n *NodeState) handlePrepare(from int, msg *Message) []Outbound {
 	if n.Role != Participant || n.ParticipantState != ParticipantIdle {
-		return nil // not a participant, or already mid-transaction — ignore (no txn IDs in this simplified model)
+		return nil
 	}
 
 	n.Command = msg.Command
@@ -73,7 +73,7 @@ func (n *NodeState) handlePrepare(from int, msg *Message) []Outbound {
 // decide Commit.
 func (n *NodeState) handleVoteReply(from int, msg *Message) []Outbound {
 	if n.Role != Coordinator || n.CoordinatorState != WaitingForVotes {
-		return nil // stale — already decided, or not currently collecting votes
+		return nil
 	}
 
 	n.VotesReceived[from] = msg.Vote
@@ -82,7 +82,7 @@ func (n *NodeState) handleVoteReply(from int, msg *Message) []Outbound {
 		return n.decide(DecisionAbort)
 	}
 	if len(n.VotesReceived) < len(n.Peers) {
-		return nil // still waiting on the rest
+		return nil
 	}
 	return n.decide(DecisionCommit)
 }
@@ -94,7 +94,7 @@ func (n *NodeState) handleVoteReply(from int, msg *Message) []Outbound {
 func (n *NodeState) decide(d Decision) []Outbound {
 	n.CoordinatorState = Decided
 	n.Decision = d
-	n.timerGen[TimerPrepare]++ // cancel the prepare timeout — no longer waiting
+	n.timerGen[TimerPrepare]++
 
 	out := []Outbound{n.persistOutbound()}
 	for _, peer := range n.Peers {
@@ -146,7 +146,7 @@ func (n *NodeState) handleTimeout(kind TimerKind) []Outbound {
 // the package doc for why.
 func (n *NodeState) handlePrepareTimeout() []Outbound {
 	if n.Role != Coordinator || n.CoordinatorState != WaitingForVotes {
-		return nil // already decided, or stale
+		return nil
 	}
 	return n.decide(DecisionAbort)
 }

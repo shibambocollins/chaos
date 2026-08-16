@@ -79,7 +79,7 @@ func TestHandleHeartbeatTimeout_CarriesEachFollowersMissingEntries(t *testing.T)
 		{Term: 5, Index: 1, Command: []byte("a")},
 		{Term: 5, Index: 2, Command: []byte("b")},
 	}
-	// Peer 2 has replicated nothing yet; peer 3 is fully caught up.
+
 	n.NextIndex = map[int]uint64{2: 1, 3: 3}
 	n.MatchIndex = map[int]uint64{2: 0, 3: 2}
 

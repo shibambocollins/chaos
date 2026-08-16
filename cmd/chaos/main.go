@@ -55,10 +55,6 @@ func main() {
 	}
 }
 
-// runScenario builds a fresh cluster for seed and drives it through the
-// same randomized kill/restart/partition/heal/client-request mix the
-// property-based test suite uses, checking all five safety properties via
-// a SafetyMonitor the whole way through.
 func runScenario(seed int64, nodeCount, rounds int, dropProb, dupProb float64) sim.Report {
 	ids := make([]int, nodeCount)
 	for i := range ids {
@@ -78,15 +74,15 @@ func runScenario(seed int64, nodeCount, rounds int, dropProb, dupProb float64) s
 
 	for round := 0; round < rounds; round++ {
 		switch actions.Intn(5) {
-		case 0: // kill a random alive node, only if a majority would still survive
+		case 0:
 			if alive := aliveIDs(s, ids); len(alive) > len(ids)/2+1 {
 				s.Kill(alive[actions.Intn(len(alive))])
 			}
-		case 1: // restart a random dead node
+		case 1:
 			if dead := deadIDs(s, ids); len(dead) > 0 {
 				s.Restart(dead[actions.Intn(len(dead))])
 			}
-		case 2: // partition into two random groups
+		case 2:
 			perm := actions.Perm(len(ids))
 			split := 1 + actions.Intn(len(ids)-1)
 			var g1, g2 []int
@@ -98,9 +94,9 @@ func runScenario(seed int64, nodeCount, rounds int, dropProb, dupProb float64) s
 				}
 			}
 			s.Partition([][]int{g1, g2})
-		case 3: // heal
+		case 3:
 			s.Heal()
-		case 4: // client request to the current leader, if any
+		case 4:
 			if leader := s.Leader(); leader != nil {
 				cmdCounter++
 				s.Schedule(raft.Event{At: s.Now(), NodeID: leader.ID, Kind: raft.EventClientRequest, Command: []byte(fmt.Sprintf("cmd-%d", cmdCounter))})

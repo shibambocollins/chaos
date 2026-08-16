@@ -25,7 +25,6 @@ func TestHandleElectionTimeout_BecomesCandidateAndBroadcastsRequestVote(t *testi
 		t.Fatalf("expected candidate to have voted for itself")
 	}
 
-	// OutPersist must appear, and before any OutSendMessage.
 	persistIdx, sendIdx := -1, -1
 	requestVotesTo := map[int]bool{}
 	for i, ob := range out {
@@ -57,7 +56,6 @@ func TestHandleElectionTimeout_BecomesCandidateAndBroadcastsRequestVote(t *testi
 		}
 	}
 
-	// A reset timer with a duration inside the configured bounds.
 	found := false
 	for _, ob := range out {
 		if ob.Kind == OutResetTimer && ob.TimerKindField == TimerElection {

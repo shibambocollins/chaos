@@ -33,6 +33,10 @@ CLAUDE.md
 web/CLAUDE.md
 docs/
 
+# Other markdown, not part of the public repo — only the root README ships
+web/AGENTS.md
+web/README.md
+
 # Editors/IDEs — personal, not shared
 .idea/
 .vscode/

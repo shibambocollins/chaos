@@ -1,27 +1,11 @@
 import type { Trace } from "./trace";
 import type { ScenarioId } from "./loadTrace";
 
-// The actions a device offers when you click it.
-//
-// The honest framing matters here: these are not live controls. Every
-// scenario was already simulated by internal/sim and exported as a fixed
-// trace, so "cut the power" cannot kill an arbitrary node on demand.
-// What it can do is load the recorded run where that fault happens and
-// jump straight to the moment it happens, which is what someone clicking
-// the button actually wants to see.
-//
-// That constraint also decides the wording. Labels say "the leader"
-// rather than "computer 5", because which node wins the first election
-// is a property of the recorded run, not something the button chooses.
 export interface DeviceAction {
   key: string;
   scenario: ScenarioId;
   label: string;
   detail: string;
-  // Where to land in the loaded trace. Resolved against the trace once
-  // it arrives, rather than hardcoded, so regenerating the traces from
-  // cmd/chaos with a different seed cannot silently point these at the
-  // wrong frame.
   seek: (t: Trace) => number;
 }
 
@@ -72,10 +56,6 @@ function frameMatching(t: Trace, re: RegExp): number {
   return i < 0 ? 0 : i;
 }
 
-// A network split is not narrated by the trace recorder the way a kill
-// is, because no node is told about it. Its first observable symptom is
-// that the cluster stops having a leader, so that is what we look for:
-// the first frame with no leader after there had been one.
 function frameLeaderLost(t: Trace): number {
   let sawLeader = false;
   for (let i = 0; i < t.ticks.length; i++) {

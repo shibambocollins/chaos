@@ -7,11 +7,6 @@ import { DEVICE_ACTIONS, type DeviceAction } from "@/lib/scenarioActions";
 import { LIVE_ACTIONS, type LiveActionKind } from "@/lib/liveActions";
 import { translate } from "@/lib/plainEnglish";
 
-// Two palettes, on purpose. Phosphor colours are for pixels behind
-// glass, and they are bright because a CRT is emissive. Plate colours
-// are for the device label printed on the white workspace, where the
-// same green would be unreadable. Using one palette for both is what
-// makes a UI look like it was picked from a swatch generator.
 const P_GREEN = "#46d16d";
 const P_GREEN_DIM = "#2f8a4c";
 const P_AMBER = "#e8ac42";
@@ -23,7 +18,7 @@ export type NodeKind = "tower" | "laptop" | "aio";
 interface Props {
   node: TraceNodeState;
   kind: NodeKind;
-  narration: string[]; // this node's own narration lines up to the current tick
+  narration: string[];
   focused: boolean;
   dimmed: boolean;
   mode: "replay" | "live";
@@ -36,15 +31,6 @@ interface Props {
 type Transient = "none" | "dying" | "booting";
 type Tab = "status" | "log" | "act";
 
-// NodeCard is the visual heart of the project: one Raft node drawn as a
-// beige desktop machine whose screen doubles as its readout, and whose
-// screen is also where you drive the thing from.
-//
-// Putting the scenario controls on the devices instead of in a toolbar
-// is the difference between "pick a data file" and "do something to this
-// computer". The actions are still replays underneath, and the ACTIONS
-// screen says so, but the gesture is the one a person expects: click the
-// machine, tell it to switch off.
 export default function NodeCard({
   node,
   kind,
@@ -61,23 +47,12 @@ export default function NodeCard({
   const prevAlive = useRef(node.alive);
   const [transient, setTransient] = useState<Transient>("none");
 
-  // Resetting tab when this card becomes dimmed (attention moved to a
-  // different device) is React's documented "adjust state when a prop
-  // changes" case, done during render rather than in an effect: without
-  // this, a DO or LOG screen left open would stay open indefinitely in
-  // the background, dimmed but unchanged, so refocusing it later would
-  // show whatever tab it was left on instead of its normal readout.
   const [prevDimmed, setPrevDimmed] = useState(dimmed);
   if (dimmed !== prevDimmed) {
     setPrevDimmed(dimmed);
     if (dimmed) setTab("status");
   }
 
-  // The trace only records discrete before/after states (a kill jumps
-  // straight from alive:true to alive:false in one tick, no in-between
-  // frame) but the die/boot animations are worth keeping. Trigger them
-  // as a transient overlay whenever `alive` actually flips between
-  // renders, rather than needing the trace itself to carry a "dying" state.
   useEffect(() => {
     if (prevAlive.current && !node.alive) {
       setTransient("dying");
@@ -100,18 +75,8 @@ export default function NodeCard({
   const isLeader = on && node.role === "Leader";
   const isCand = on && node.role === "Candidate";
 
-  // The screen goes fully invisible while off (see screenOpacity below),
-  // which is realistic (a dead monitor shows nothing), but it also means
-  // a powered-off node's own DO tab, where "restart" lives, is invisible
-  // right when you need it. The physical power control is the answer on
-  // real hardware too: press it, don't read the (blank) screen. Wired
-  // only in live mode, since replay's actions aren't tied to a specific
-  // node's power state the same way.
   const onPower = mode === "live" ? () => onLiveAction(on ? "kill" : "restart") : undefined;
 
-  // Plain wording first, exact Raft term underneath. Someone who knows
-  // the protocol still gets "Leader / term 2"; someone who does not can
-  // read the cluster off the screens without being taught the words.
   let plainState: string, techState: string, roleColor: string;
   if (booting) {
     plainState = "STARTING UP"; techState = "restoring state"; roleColor = P_BLUE;
@@ -212,7 +177,6 @@ export default function NodeCard({
         {isTower && <Tower on={on} pwrColor={pwrColor} ledAnim={ledAnim} onPower={onPower} />}
 
         <div style={{ position: "relative" }}>
-          {/* Monitor: thick putty bezel around a recessed tube. */}
           <div
             style={{
               position: "relative", width: 236, boxSizing: "border-box",
@@ -231,8 +195,6 @@ export default function NodeCard({
               style={{
                 position: "relative", height: screenH, overflow: "hidden",
                 background: "var(--crt)",
-                // Inner shadow on the top/left reads as the tube sitting
-                // down inside the bezel rather than pasted onto it.
                 boxShadow: `${screenGlow}, inset 0 2px 5px rgba(0,0,0,.9), 0 0 0 1px var(--case-shadow)`,
                 transition: "box-shadow .45s ease",
               }}
@@ -308,9 +270,6 @@ export default function NodeCard({
 
       {isTower && <Keyboard />}
 
-      {/* Device label printed on the workspace, network-diagram style:
-          in the UI font, not the screen font, because it is not part of
-          the machine. */}
       <div
         style={{
           marginTop: 8, display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
@@ -331,8 +290,6 @@ export default function NodeCard({
     </div>
   );
 }
-
-/* ---- Screens ------------------------------------------------------ */
 
 function StatusScreen({
   plainState, techState, roleColor, ticks, tickColor, logLen, commitIndex,
@@ -381,12 +338,6 @@ function LogScreen({ narration }: { narration: string[] }) {
   );
 }
 
-// ActionScreen shows one of two entirely different button lists depending
-// on mode, not the same list with different handlers: a recorded-run
-// jump and a real HTTP request to a live process are different enough
-// gestures that presenting both together, or silently switching what a
-// given button does out from under someone, would be more confusing than
-// two clearly separate screens.
 function ActionScreen({
   node,
   mode,
@@ -491,8 +442,6 @@ function ScreenTab({ label, active, onSelect }: { label: string; active: boolean
   );
 }
 
-/* ---- Chassis ------------------------------------------------------ */
-
 const CASE_FACE = "linear-gradient(160deg, var(--case-lit), var(--case) 50%, var(--case-dim))";
 const CASE_EDGE = "1px solid var(--case-edge)";
 const CASE_SHADOW = "0 6px 12px rgba(60,55,40,.24), 0 1px 2px rgba(60,55,40,.28)";
@@ -511,13 +460,11 @@ function Tower({
         boxShadow: CASE_SHADOW,
       }}
     >
-      {/* Optical drive and floppy slot. */}
       <div style={{ height: 9, background: "var(--case-dim)", border: "1px solid var(--case-shadow)", display: "flex", alignItems: "center", justifyContent: "flex-end", paddingRight: 3 }}>
         <span style={{ width: 5, height: 2, background: "var(--case-shadow)" }} />
       </div>
       <div style={{ height: 6, background: "var(--case-dim)", border: "1px solid var(--case-shadow)" }} />
       <div style={{ flex: 1 }} />
-      {/* Vent slots. */}
       <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
         {[0, 1, 2, 3].map((i) => (
           <span key={i} style={{ height: 2, background: "var(--case-vent)", borderTop: "1px solid var(--case-shadow)" }} />

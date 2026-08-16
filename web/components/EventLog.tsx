@@ -3,15 +3,6 @@
 import { useEffect, useRef } from "react";
 import { translate, TONE_COLOR } from "@/lib/plainEnglish";
 
-// Every event is shown twice: the plain sentence, then the raw line that
-// internal/sim actually emitted, in mono underneath.
-//
-// That is a deliberate refusal to pick an audience. Showing only "node 5
-// became Leader (term 2)" locks out anyone who has not read the Raft
-// paper; showing only "Computer 5 is now in charge" throws away the term
-// number, which is the single most important quantity in the protocol.
-// Stacking them costs one line of vertical space and means the same
-// screen works whether or not you know what a term is.
 export default function EventLog({ lines }: { lines: string[] }) {
   const endRef = useRef<HTMLDivElement>(null);
 

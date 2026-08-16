@@ -1,19 +1,3 @@
-// Translates a raw narration line from internal/sim into something a
-// non-specialist can read, without throwing the raw line away.
-//
-// The design goal is a UI that works for two audiences at once: someone
-// who knows Raft should still see "node 5 became Leader (term 2)" with
-// its exact term number, and someone who doesn't should be able to
-// follow the story from "Computer 5 is now in charge". So every event is
-// shown twice, plain line first, raw line under it, rather than picking
-// one audience and losing the other.
-//
-// Vocabulary choices worth being deliberate about:
-//   node   -> "computer", because the devices on screen are computers
-//   term   -> "round",    because a term really is a numbered attempt
-//   commit -> "saved for good", because that is what durability means
-//   entry  -> "change",   because a log entry here is a client write
-
 export interface Translated {
   plain: string;
   raw: string;

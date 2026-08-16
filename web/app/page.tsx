@@ -17,21 +17,6 @@ const LIVE_SERVER_URL = process.env.NEXT_PUBLIC_LIVE_SERVER_URL ?? "http://local
 
 type Mode = "replay" | "live";
 
-// The shell is a fixed-chrome desktop application layout rather than a
-// scrolling web page: title bar, workspace, docked panel, controls,
-// status bar. That is the point of the visual language. This is a
-// network simulator you operate, not a dashboard you read.
-//
-// Two modes share the same workspace. Replay plays back a recorded
-// internal/sim run (the original design); Live watches an actual running
-// chaos-server process in real time. They deliberately share every
-// visual component unchanged. ClusterView and NodeCard have no idea
-// which one is feeding them, because both ultimately hand them the same
-// TraceTick shape (see lib/liveReport.ts for the live side of that).
-// NodeCard's DO screen shows a completely different button list per
-// mode instead: Live's buttons send real HTTP requests to a running
-// chaos-server (see lib/liveClient.ts) and the effect shows up over the
-// SSE stream a moment later, rather than jumping to a recorded frame.
 export default function Home() {
   const [mode, setMode] = useState<Mode>("replay");
   const [request, setRequest] = useState<PlaybackRequest>({ scenario: "election" });
@@ -54,12 +39,6 @@ export default function Home() {
     setRequest({ scenario: a.scenario, seek: a.seek, autoplay: true, nonce: Date.now() });
   }, []);
 
-  // The five live actions all resolve to one HTTP call each against the
-  // running chaos-server. isolate needs every configured node id (not
-  // just the currently alive ones) to build a correct partition, which
-  // is why it reads from the current tick rather than taking a fixed
-  // roster, since the cluster size isn't hardcoded into the frontend anywhere
-  // else either.
   const doLiveAction = useCallback(
     (nodeId: number, kind: LiveActionKind) => {
       switch (kind) {

@@ -1,7 +1,5 @@
 import type { Trace } from "./trace";
 
-// Scenario names must match cmd/chaos's -trace flag values and the
-// filenames actually exported into public/traces/.
 export const SCENARIOS = [
   {
     id: "election",
